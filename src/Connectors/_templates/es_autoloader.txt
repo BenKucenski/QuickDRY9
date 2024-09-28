@@ -1,0 +1,17 @@
+<?php
+/**
+ * @param $class
+ */
+function es_[[ClassPrefix]]_autoloader($class) {
+    $class_map = [
+        [[mod_map]]
+    ];
+
+    if(!isset($class_map[$class])) {
+        return;
+    }
+
+    require_once __DIR__ . '/' . $class_map[$class];
+}
+
+spl_autoload_register('es_[[ClassPrefix]]_autoloader');

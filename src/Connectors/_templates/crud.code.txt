@@ -1,0 +1,12 @@
+<?php
+namespace pages\[[namespace]]\[[table_nice_name]];
+
+use pages\[[namespace]]\[[table_nice_name]]\base\[[table_nice_name]]Base;
+
+/**
+ *
+ */
+class [[table_nice_name]] extends [[table_nice_name]]Base
+{
+
+}

@@ -1,0 +1,18 @@
+<?php
+namespace [[namespace]];
+
+[[use]]
+use QuickDRY\Connectors\QueryExecuteResult;
+
+class [[c_name]] extends db_[[c_name]]
+{
+    /**
+     * @return QueryExecuteResult
+     */
+    public function Save(): QueryExecuteResult
+    {
+        [[HasUserLink]]
+
+        return $this->_Save();
+    }
+}

@@ -1,0 +1,24 @@
+<?php
+use QuickDRY\Utilities\Debug;
+
+/**
+ * Class [[sp_class]]
+ */
+class [[sp_class]] extends db_[[sp_class]]
+{
+    /**
+     * [[sp_class]] constructor.
+     * @param null $row
+     */
+    public function __construct($row = null)
+    {
+        if($row) {
+            $this->HaltOnError(false);
+            $this->FromRow($row);
+            if($this->HasMissingProperties()) {
+                Debug::Halt($this->GetMissingProperties());
+            }
+            $this->HaltOnError(true);
+        }
+    }
+}

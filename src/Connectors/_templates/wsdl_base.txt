@@ -1,0 +1,8 @@
+<?php
+/**
+ * Class [[ClassName]]Base
+ */
+class [[ClassName]]Base extends APIRequest
+{
+[[function_code]]
+}

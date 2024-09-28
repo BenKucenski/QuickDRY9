@@ -1,0 +1,31 @@
+<?php
+use QuickDRY\Utilities\SafeClass;
+use QuickDRY\Utilities\Debug;
+
+/**
+ * Class db_[[sp_class]]
+ */
+ class db_[[sp_class]] extends SafeClass
+{
+    /**
+     * @return [[sp_class]][]
+     */
+    public static function GetReport([[func_params]]): ?array
+    {
+        $sql = '
+        CALL [[DatabaseConstant]].[[[SPECIFIC_NAME]]] (
+            [[sql_params]]
+        )
+        ';
+
+        /* @var $rows [[sp_class]][] */
+        $rows = [[DatabaseClass]]::Query($sql, [[[params]]], null, function ($row) {
+            return new [[sp_class]]($row);
+        });
+
+        if (isset($rows['error']) && $rows['error']) {
+            Debug::Halt($rows);
+        }
+        return $rows;
+    }
+}

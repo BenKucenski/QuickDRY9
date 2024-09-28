@@ -1,0 +1,73 @@
+let [[c_name]] = {
+    title: "[[table_nice_name]]",
+    save_action: "Saving [[table_nice_name]]",
+    delete_action: "Deleting [[table_nice_name]]",
+    _form: "[[c_name]]_form",
+    _path: "[[JSONFolder]]/[[table_nice_name]]",
+    _class: "[[c_name]]",
+    _dialog: "[[c_name]]_dialog",
+    _active: false,
+    _save_callback: function (data) {
+        HTTP.ReloadPage();
+    },
+    _delete_callback: function (data) {
+        HTTP.ReloadPage();
+    },
+    _Load: function (data) {
+        QuickDRY.ShowModal(this._dialog, this.title);
+
+    },
+    Load: function ([[primary]], save_callback, delete_callback) {
+        QuickDRY.ClearForm(this._form);
+
+        $("#" + this._class + "_[[primary]]").val([[primary]]);
+        if ([[primary]]) {
+            QuickDRY.Read([[c_name]]._path, {[[primary]]: [[primary]]}, function (data) {
+                /** @namespace data.can_delete **/
+                QuickDRY.LoadForm(data, [[c_name]]._class);
+                if (!data.data.can_delete) {
+                    $("#btn_" + [[c_name]]._class + "_delete").hide();
+                } else {
+                    $("#btn_" + [[c_name]]._class + "_delete").show();
+                }
+            });
+        } else {
+            $("#btn_" + this._class + "_delete").hide();
+        }
+
+        this._active = true;
+        this._Load();
+
+        if (save_callback) {
+            this._save_callback = save_callback;
+        }
+        if (delete_callback) {
+            this._delete_callback = delete_callback;
+        }
+    },
+    Save: function () {
+        if (!this._active) {
+            return;
+        }
+        WaitDialog("Please Wait...", this.save_action);
+        this._active = false;
+        if($("#" + this._class + "_[[primary]]").val()) {
+            QuickDRY.Update(this._path, {serialized: $("#" + this._form).serialize()}, this._save_callback, this._dialog);
+        } else {
+            QuickDRY.Create(this._path, {serialized: $("#" + this._form).serialize()}, this._save_callback, this._dialog);
+        }
+    },
+    Delete: function ([[primary]]) {
+        if([[primary]]) {
+            QuickDRY.ConfirmDelete(this._path, this.title, {[[primary]]: [[primary]]}, "", this._delete_callback, this._dialog);
+            return;
+        }
+
+        if (!this._active) {
+            return;
+        }
+        this._active = false;
+
+        QuickDRY.ConfirmDelete(this._path, this.title, {[[primary]]: $("#" + this._class + "_[[primary]]").val()}, "", this._delete_callback, this._dialog);
+    }
+};

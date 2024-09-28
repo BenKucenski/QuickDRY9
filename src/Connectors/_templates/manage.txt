@@ -1,0 +1,28 @@
+<?php
+namespace pages\[[namespace]]\[[table_nice_name]];
+
+use QuickDRY\Utilities\Navigation;
+?>
+
+<div class="panel panel-default">
+    <div class="panel-heading">
+        <div class="pull-right"><a id="" onclick="[[c_name]].Load();"><i class="fa fa-plus"></i></a></div>
+        <div class="panel-title">[[table_nice_name]]</div>
+    </div>
+    <div class="panel-body">
+<?php echo Navigation::BootstrapPaginationLinks([[table_nice_name]]::$Count); ?>
+<table class="table table-striped" style="font-size: 0.9em;">
+    <thead>
+    <?php echo [[table_nice_name]]::$TableHeader; ?>
+    </thead>
+    <?php foreach ([[table_nice_name]]::$Items as $item) { ?>
+        <?php echo $item->ToRow(true); ?>
+    <?php } ?>
+</table>
+<?php echo Navigation::BootstrapPaginationLinks([[table_nice_name]]::$Count); ?>
+
+    </div>
+</div>
+
+
+<?php require_once '[[DestinationFolder]]/controls/add.php'; ?>

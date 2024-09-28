@@ -1,0 +1,34 @@
+let [[c_name]]History = {
+    Load : function(uuid) {
+        $('#[[c_name]]_history_div').html('');
+        if (typeof (uuid) === 'undefined' || !uuid) {
+            return;
+        }
+
+        HTTP.Post('/json/[[JSONFolder]]/[[table_nice_name]]', {
+            [[primary]] : uuid,
+            verb : 'HISTORY'
+        }, function(data) {
+            if (data.error) {
+                NoticeDialog('Error',data.error);
+            } else {
+                $('#[[c_name]]_history_dialog_title').html("[[c_name]]");
+                for(let i in data.history) {
+                    let row = data.history[i];
+                    let html = '<tr>' +
+                        '<td>' + row.Rev + '</td>' +
+                        '<td>' + row.Column + '</td>' +
+                        '<td>' + row.Value + '</td>' +
+                        '<td>' + row.Was + '</td>' +
+                        '<td>' + row.Now + '</td>' +
+                        '<td>' + row.When + '</td>' +
+                        '<td>' + row.By + '</td>' +
+                        '</tr>';
+                    $('#[[c_name]]_history_table > tbody:last-child').append(html);
+                }
+
+                QuickDRY.ShowModal('[[c_name]]_history_dialog', '[[ClassName]] History');
+            }
+        });
+    }
+};

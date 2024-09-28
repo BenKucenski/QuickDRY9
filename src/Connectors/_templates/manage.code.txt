@@ -1,0 +1,39 @@
+<?php
+namespace pages\[[namespace]]\[[table_nice_name]];
+
+use QuickDRY\Web\BasePage;
+
+use [[namespace_c_name]];
+
+/**
+ * Class [[table_nice_name]]
+ *
+ */
+class [[table_nice_name]] extends BasePage
+{
+    /* @var [[c_name]][] $Items  */
+    public static ?array $Items;
+
+    public static int $Count;
+    public static string $TableHeader;
+
+    /**
+     * @return void
+     */
+    public static function DoInit(): void
+    {
+        self::$MasterPage = ' . $this->MasterPage . ';
+    }
+
+    /**
+     * @return void
+     */
+    public static function DoGet(): void
+    {
+        $items = [[c_name]]::GetAllPaginated(null, null, PAGE, PER_PAGE);
+        self::$TableHeader = [[c_name]]::GetHeader(SORT_BY, SORT_DIR, true);
+        self::$Items = $items['items'];
+        self::$Count = $items['count'];
+
+    }
+}

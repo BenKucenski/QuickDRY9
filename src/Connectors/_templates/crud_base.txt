@@ -1,0 +1,188 @@
+<?php
+namespace pages\[[namespace]]\[[table_nice_name]]\base;
+
+use JetBrains\PhpStorm\NoReturn;
+use QuickDRY\Web\BasePage;
+use QuickDRY\Utilities\Dates;
+use QuickDRY\Utilities\HTTP;
+use QuickDRYInstance\Common\ChangeLogHistory;
+
+use [[namespace_c_name]];
+
+/**
+ * Class [[table_nice_name]]Base
+ */
+class [[table_nice_name]]Base extends BasePage
+{
+    public static ?ChangeLogHistory $History = null;
+
+    public static ?[[c_name]] $Item;
+
+    /**
+     * @return void
+     */
+    private static function CheckUser(): void
+    {
+      if (!self::$CurrentUser || !self::$CurrentUser->id) {
+        HTTP::ExitJSON(['error' => 'Invalid Request'], HTTP_STATUS_UNAUTHORIZED);
+      }
+    }
+
+    /**
+     * @return void
+     */
+    private static function LoadItem(): void
+    {
+      if ([[missing_params]]) {
+        HTTP::ExitJSON(['error' => 'Missing ID'], HTTP_STATUS_BAD_REQUEST);
+      }
+
+      self::$Item = [[c_name]]::Get(['id' => self::$Request->Get('id')]);
+
+      if (!self::$Item) {
+        HTTP::ExitJSON(['error' => 'Invalid ID','parameters' => ['id' => self::$Request->Get('id')]], HTTP_STATUS_NOT_FOUND);
+      }
+
+      if (!self::$Item->VisibleTo(self::$CurrentUser)) {
+        HTTP::ExitJSON(['error' => 'No Permission'], HTTP_STATUS_BAD_REQUEST);
+      }
+    }
+
+    /**
+     * @return void
+     */
+    #[NoReturn] public static function DoGet(): void
+    {
+        self::$Request->FromSerialized(self::$Request->Get('serialized'));
+
+        self::CheckUser();
+        self::LoadItem();
+
+        $res = self::$Item->ToJSONArray();
+        $res['can_delete'] = self::$Item->CanDelete(self::$CurrentUser);
+        HTTP::ExitJSON(['data' => $res]);
+    }
+
+    /**
+     * @return void
+     */
+    #[NoReturn] public static function DoPost(): void
+    {
+        self::$Request->FromSerialized(self::$Request->Get('serialized'));
+
+        self::CheckUser();
+        self::LoadItem();
+
+        $req = self::$Request->ToArray();
+        $res = self::$Item->FromRequest($req, true, true);
+        if (isset($res['error']) && $res['error']) {
+            HTTP::ExitJSON(['error' => $res['error']], HTTP_STATUS_BAD_REQUEST);
+        }
+
+        HTTP::ExitJSON(['data' => self::$Item->ToArray()]);
+    }
+
+    /**
+     * @return void
+     */
+    #[NoReturn] public static function DoPut(): void
+    {
+        self::$Request->FromSerialized(self::$Request->Get('serialized'));
+
+        self::CheckUser();
+
+        if ([[missing_params]]) {
+            self::$Item = new [[c_name]]();
+        } else {
+            self::$Item = [[c_name]]::Get([[[get_params]]]);
+        }
+
+        $req = self::$Request->ToArray();
+        $res = self::$Item->FromRequest($req, false, true);
+
+        if (isset($res['error']) && $res['error']) {
+            HTTP::ExitJSON(['error' => $res['error']], HTTP_STATUS_BAD_REQUEST);
+        }
+
+        if (!self::$Item->VisibleTo(self::$CurrentUser)) {
+            HTTP::ExitJSON(['error' => 'No Permission'], HTTP_STATUS_BAD_REQUEST);
+        }
+
+        $res = self::$Item->Save();
+        if ($res['error']) {
+            HTTP::ExitJSON(['error' => $res['error']], HTTP_STATUS_BAD_REQUEST);
+        }
+
+        HTTP::ExitJSON(['data' => self::$Item->ToArray()]);
+    }
+
+    /**
+     * @param string $success_message
+     * @return void
+     */
+    #[NoReturn] public static function DoDelete(string $success_message = 'Item Removed'): void
+    {
+        self::$Request->FromSerialized(self::$Request->Get('serialized'));
+
+        self::CheckUser();
+        self::LoadItem();
+
+        $res = self::$Item->Remove(self::$CurrentUser);
+        if (isset($res['error']) && $res['error']) {
+            HTTP::ExitJSON(['error' => $res['error']], HTTP_STATUS_BAD_REQUEST);
+        }
+        HTTP::ExitJSON(['success' => $success_message]);
+    }
+
+    /**
+     * @return void
+     */
+    #[NoReturn] public static function DoFind(): void
+    {
+        self::$Request->FromSerialized(self::$Request->Get('serialized'));
+
+        self::CheckUser();
+
+        HTTP::ExitJSON(['error' => 'Find Not Implemented'], HTTP_STATUS_BAD_REQUEST);
+    }
+
+    /**
+     * @return void
+     */
+    #[NoReturn] public static function DoHistory(): void
+    {
+        self::$Request->FromSerialized(self::$Request->Get('serialized'));
+
+        self::CheckUser();
+        self::LoadItem();
+
+        self::$History = self::$Item->history;
+
+        if (!self::$History || !sizeof(self::$History->changes)) {
+            HTTP::ExitJSON(['error' => 'No History Available'], HTTP_STATUS_NOT_FOUND);
+        }
+
+        $report = [];
+
+        $m = sizeof(self::$History->changes);
+        foreach (self::$History->changes as $i => $cl) {
+            foreach ($cl->changes_list as $column => $change) {
+                if ([[c_name]]::IgnoreColumn($column)) {
+                    continue;
+                }
+                $r = [
+                    'Rev' => $m - $i,
+                    'Column' => $column,
+                    'Value' => self::$Item->ValueToNiceValue($column),
+                    'Was' => self::$Item->ValueToNiceValue($column, $change->old, true),
+                    'Now' => self::$Item->ValueToNiceValue($column, $change->new, true),
+                    'When' => Dates::StandardDateTime($cl->created_at),
+                    'By' => $cl->GetUser(),
+
+                ];
+                $report [] = $r;
+            }
+        }
+        HTTP::ExitJSON(['history' => $report]);
+    }
+}

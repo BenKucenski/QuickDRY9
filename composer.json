@@ -1,18 +1,42 @@
 {
-    "name": "bkucenski/quickdry",
-    "description": "MVC Library",
-    "type": "library",
-    "license": "Apache",
-    "autoload": {
-        "psr-4": {
-            "Bkucenski\\Quickdry\\": "src/"
-        }
+  "name": "bkucenski/quickdry",
+  "description": "MVC Library",
+  "type": "library",
+  "license": "Apache",
+  "autoload": {
+    "psr-4": {
+      "Bkucenski\\Quickdry\\": "src/"
+    }
+  },
+  "authors": [
+    {
+      "name": "Ben Kucenski",
+      "email": "bkucenski@gmail.com"
+    }
+  ],
+  "require": {
+    "firebase/php-jwt": "*",
+    "guzzlehttp/guzzle": "*",
+    "larapack/dd": "*",
+    "phpmailer/phpmailer": "*",
+    "phpoffice/phpspreadsheet": "*",
+    "ext-odbc": "*",
+    "ext-sqlite3": "*",
+    "ext-gd": "*",
+    "ext-openssl": "*",
+    "ext-curl": "*",
+    "ext-sqlsrv": "*",
+    "ext-mysqli": "*",
+    "ext-simplexml": "*",
+    "ext-libxml": "*",
+    "ext-xml": "*"
+  },
+  "config": {
+    "platform": {
+      "php": "8.3"
     },
-    "authors": [
-        {
-            "name": "Ben Kucenski",
-            "email": "bkucenski@gmail.com"
-        }
-    ],
-    "require": {}
+    "allow-plugins": {
+      "composer/package-versions-deprecated": true
+    }
+  }
 }

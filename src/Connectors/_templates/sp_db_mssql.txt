@@ -1,0 +1,51 @@
+<?php
+use QuickDRY\Utilities\SafeClass;
+use QuickDRY\Utilities\Debug;
+
+/**
+ * Class db_[[sp_class]]
+ */
+class db_[[sp_class]] extends SafeClass
+{
+    public static $HaltSPOnError = true;
+    /**
+     * @param  [[clean_params]]
+     * @return [[sp_class]][]
+     */
+    public static function GetReport([[func_params]]): ?array
+    {
+        $sql = '
+        EXEC [[DatabaseConstant]].[dbo].[[[SPECIFIC_NAME]]]
+        [[sql_params]]
+
+        ';
+        /* @var $rows [[sp_class]][] */
+        $rows = [[DatabaseClass]]::QueryMap($sql, [[[params]]], function ($row) {
+            return new [[sp_class]]($row);
+        });
+
+        if (self::$HaltSPOnError && isset($rows['error'])) {
+            Debug::Halt($rows);
+        }
+        return $rows;
+    }
+
+    /**
+     * @param  [[clean_params]]
+     * @return array
+     */
+    public static function Exec([[func_params]]): array
+    {
+        $sql = '
+        EXEC [[DatabaseConstant]].[dbo].[[[SPECIFIC_NAME]]]
+        [[sql_params]]
+
+        ';
+        $res = [[DatabaseClass]]::Execute($sql, [[[params]]]);
+
+        if (self::$HaltSPOnError && $res['error']) {
+            Debug::Halt($res);
+        }
+        return $res;
+    }
+}
