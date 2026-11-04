@@ -1,7 +1,7 @@
 <?php
 // put your global constants in here
 
-const SESSION_NAME = 'QuickDRY8';
+const SESSION_NAME = 'QuickDRY9';
 
 const DATA_FOLDER = __DIR__;
 

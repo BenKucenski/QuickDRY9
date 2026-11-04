@@ -36,12 +36,5 @@ function GUID(): string
 
 define('GUID', GUID());
 
-// Autoload this application's own classes (pages\..., generated models, etc.)
-// from this folder. QuickDRY's own classes come from Composer.
-spl_autoload_register(function ($class_name) {
-    $class_name = str_replace('\\', '/', $class_name);
-    $file = __DIR__ . '/' . $class_name . '.php';
-    if (file_exists($file)) {
-        require_once $file;
-    }
-});
+// The application's own classes (pages\..., common\..., any folder in this project)
+// are autoloaded from the project root by QuickDRY at startup.

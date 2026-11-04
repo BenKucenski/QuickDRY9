@@ -5,19 +5,19 @@
   "repositories": [
     {
       "type": "vcs",
-      "url": "https://github.com/BenKucenski/QuickDRY8"
+      "url": "https://github.com/BenKucenski/QuickDRY9"
     }
   ],
   "require": {
     "php": ">=8.0",
-    "benkucenski/quickdry8": "dev-main"
+    "benkucenski/quickdry9": "dev-main"
   },
   "scripts": {
     "post-install-cmd": [
-      "@php vendor/benkucenski/quickdry8/bin/quickdry-publish"
+      "@php vendor/benkucenski/quickdry9/bin/quickdry-publish"
     ],
     "post-update-cmd": [
-      "@php vendor/benkucenski/quickdry8/bin/quickdry-publish"
+      "@php vendor/benkucenski/quickdry9/bin/quickdry-publish"
     ]
   }
 }

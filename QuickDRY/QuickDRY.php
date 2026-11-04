@@ -8,6 +8,34 @@ use JetBrains\PhpStorm\NoReturn;
 use QuickDRY\Utilities\Mailer;
 use QuickDRY\Utilities\Metrics;
 use QuickDRY\Web\BrowserOS;
+use Composer\InstalledVersions;
+
+/**
+ * Root-namespace autoloader for the application using QuickDRY.
+ * A class like pages\home\home or common\models\User is loaded from
+ * <project root>/pages/home/home.php, <project root>/common/models/User.php, etc.
+ * Any folder in the project root works without registering it anywhere.
+ */
+(static function (): void {
+    $root = class_exists(InstalledVersions::class)
+        ? realpath(InstalledVersions::getRootPackage()['install_path'])
+        : false;
+
+    if (!$root) {
+        $root = dirname(__DIR__); // not installed through Composer (working in the QuickDRY repo itself)
+    }
+
+    if (!defined('QUICKDRY_PROJECT_ROOT')) {
+        define('QUICKDRY_PROJECT_ROOT', $root);
+    }
+
+    spl_autoload_register(static function (string $class_name) use ($root): void {
+        $file = $root . '/' . str_replace('\\', '/', $class_name) . '.php';
+        if (is_file($file)) {
+            require_once $file;
+        }
+    });
+})();
 
 
 /**

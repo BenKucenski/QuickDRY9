@@ -5,12 +5,12 @@
  * into <project>/QuickDRY/ so URLs like /QuickDRY/js/QuickDRY.js keep working.
  *
  * Usage:
- *   php vendor/benkucenski/quickdry8/bin/quickdry-publish [project-root]
+ *   php vendor/benkucenski/quickdry9/bin/quickdry-publish [project-root]
  *
  * Run automatically by adding to your project's composer.json:
  *   "scripts": {
- *     "post-install-cmd": ["@php vendor/benkucenski/quickdry8/bin/quickdry-publish"],
- *     "post-update-cmd":  ["@php vendor/benkucenski/quickdry8/bin/quickdry-publish"]
+ *     "post-install-cmd": ["@php vendor/benkucenski/quickdry9/bin/quickdry-publish"],
+ *     "post-update-cmd":  ["@php vendor/benkucenski/quickdry9/bin/quickdry-publish"]
  *   }
  */
 
