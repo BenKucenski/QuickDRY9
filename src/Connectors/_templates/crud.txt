@@ -1,8 +1,0 @@
-<?php
-namespace pages\[[namespace]]\[[table_nice_name]];
-
-use QuickDRY\Utilities\HTTP;
-
-if(![[table_nice_name]]::$Item) {
-    HTTP::ExitJSON(['error'=>'Invalid Request'], HTTP_STATUS_BAD_REQUEST);
-}

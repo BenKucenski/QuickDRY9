@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <system.webServer>
+        <staticContent>
+            <remove fileExtension=".gltf" />
+            <mimeMap fileExtension=".gltf" mimeType="model/gltf+json" />
+            <remove fileExtension=".glb" />
+            <mimeMap fileExtension=".glb" mimeType="model/gltf-binary" />
+            <remove fileExtension=".bin" />
+            <mimeMap fileExtension=".bin" mimeType="application/octet-stream" />
+        </staticContent>
+        <rewrite>
+            <rules>
+                <rule name="Imported Rule 5">
+                    <match url="\.(js|bin|gltf|ico|txt|gif|jpg|png|css|pdf|mp4|swf|fla|svg|woff|eot|ttf|woff2)$" ignoreCase="false" negate="true" />
+                    <action type="Rewrite" url="index.php" />
+                </rule>
+            </rules>
+        </rewrite>
+    </system.webServer>
+</configuration>

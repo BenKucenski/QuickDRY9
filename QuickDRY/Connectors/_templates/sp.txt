@@ -1,0 +1,13 @@
+<?php
+declare(strict_types=1);
+
+namespace common\[[namespace]]\sp;
+
+use common\[[namespace]]\sp_db\db_[[sp_class]];
+
+/**
+ * Class [[sp_class]]
+ */
+class [[sp_class]] extends db_[[sp_class]]
+{
+}

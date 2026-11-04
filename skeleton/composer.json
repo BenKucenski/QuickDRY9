@@ -1,0 +1,23 @@
+{
+  "name": "your-vendor/your-app",
+  "description": "A QuickDRY application",
+  "type": "project",
+  "repositories": [
+    {
+      "type": "vcs",
+      "url": "https://github.com/BenKucenski/QuickDRY8"
+    }
+  ],
+  "require": {
+    "php": ">=8.0",
+    "benkucenski/quickdry8": "dev-main"
+  },
+  "scripts": {
+    "post-install-cmd": [
+      "@php vendor/benkucenski/quickdry8/bin/quickdry-publish"
+    ],
+    "post-update-cmd": [
+      "@php vendor/benkucenski/quickdry8/bin/quickdry-publish"
+    ]
+  }
+}

@@ -1,42 +1,42 @@
 {
-  "name": "bkucenski/quickdry",
-  "description": "MVC Library",
+  "name": "benkucenski/quickdry8",
+  "description": "QuickDRY: a lightweight PHP 8 web framework with MySQL/MSSQL connectors, code generation, and page routing.",
   "type": "library",
-  "license": "Apache",
-  "autoload": {
-    "psr-4": {
-      "Bkucenski\\Quickdry\\": "src/"
-    }
-  },
+  "license": "proprietary",
   "authors": [
     {
       "name": "Ben Kucenski",
       "email": "bkucenski@gmail.com"
     }
   ],
+  "homepage": "https://github.com/BenKucenski/QuickDRY8",
   "require": {
-    "firebase/php-jwt": "*",
-    "guzzlehttp/guzzle": "*",
-    "larapack/dd": "*",
-    "phpmailer/phpmailer": "*",
-    "phpoffice/phpspreadsheet": "*",
-    "ext-odbc": "*",
-    "ext-sqlite3": "*",
-    "ext-gd": "*",
-    "ext-openssl": "*",
+    "php": ">=8.0",
     "ext-curl": "*",
-    "ext-sqlsrv": "*",
-    "ext-mysqli": "*",
-    "ext-simplexml": "*",
-    "ext-libxml": "*",
-    "ext-xml": "*"
+    "ext-json": "*",
+    "ext-mbstring": "*",
+    "ext-openssl": "*",
+    "firebase/php-jwt": "^6.0 || ^7.0",
+    "guzzlehttp/guzzle": "^7.0",
+    "larapack/dd": "^1.1",
+    "phpmailer/phpmailer": "^6.0 || ^7.0"
   },
-  "config": {
-    "platform": {
-      "php": "8.3"
+  "suggest": {
+    "ext-mysqli": "Required for the MySQL connector (QuickDRY\\Connectors\\mysql)",
+    "ext-sqlsrv": "Required for the MSSQL connector (QuickDRY\\Connectors\\mssql)",
+    "ext-odbc": "Required for the MS Access connector (QuickDRY\\Connectors\\ACCESS)"
+  },
+  "autoload": {
+    "psr-4": {
+      "QuickDRY\\": "QuickDRY/"
     },
-    "allow-plugins": {
-      "composer/package-versions-deprecated": true
-    }
-  }
+    "files": [
+      "QuickDRY/QuickDRY.php"
+    ]
+  },
+  "bin": [
+    "bin/quickdry-publish"
+  ],
+  "minimum-stability": "stable",
+  "prefer-stable": true
 }

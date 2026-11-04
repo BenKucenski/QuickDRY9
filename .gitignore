@@ -1,2 +1,9 @@
-vendor/
+/vendor
+/logs
+/composer.lock
+/web.config
 /.idea
+/skeleton/vendor
+/skeleton/composer.lock
+/skeleton/QuickDRY
+/skeleton/logs

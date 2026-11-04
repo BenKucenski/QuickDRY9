@@ -1,0 +1,7 @@
+AddDefaultCharset UTF-8
+
+RewriteEngine on
+RewriteBase /
+RewriteRule !\.(js|ico|txt|gif|jpg|png|css|pdf|mp4|swf|fla|svg|woff|eot|ttf)$ index.php
+#tihs next line is required for post authorization
+SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1

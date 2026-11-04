@@ -1,0 +1,5 @@
+# Keep the starter app and IDE stubs out of the package that lands in vendor/
+/skeleton      export-ignore
+/stubs         export-ignore
+/.gitattributes export-ignore
+/.gitignore    export-ignore

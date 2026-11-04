@@ -1,0 +1,56 @@
+<?php
+declare(strict_types=1);
+namespace common\[[namespace]]\sp_db;
+
+use common\[[namespace]]\sp\[[sp_class]];
+use QuickDRY\Connectors\QueryExecuteResult;
+use QuickDRY\Utilities\strongType;
+use [[DatabaseClass]];
+
+/**
+ * Class db_[[sp_class]]
+ */
+class db_[[sp_class]] extends strongType
+{
+    public static ?bool $HaltSPOnError = true;
+    /**
+     * @param  [[clean_params]]
+     * @return [[sp_class]][]
+     */
+    public static function getReport([[func_params]]): array
+    {
+        $sql = '
+        EXEC [[DatabaseConstant]].[dbo].[[[SPECIFIC_NAME]]]
+        [[sql_params]]
+
+        ';
+        /* @var [[sp_class]][] $rows */
+        $rows = [[DatabaseRootClass]]::QueryMap($sql, [[[params]]], function ($row) {
+            return new [[sp_class]]($row);
+        });
+
+        if (self::$HaltSPOnError && isset($rows['error'])) {
+            Debug($rows);
+        }
+        return $rows;
+    }
+
+    /**
+     * @param  [[clean_params]]
+     * @return QueryExecuteResult
+     */
+    public static function Exec([[func_params]]): QueryExecuteResult
+    {
+        $sql = '
+        EXEC [[DatabaseConstant]].[dbo].[[[SPECIFIC_NAME]]]
+        [[sql_params]]
+
+        ';
+        $res = [[DatabaseRootClass]]::Execute($sql, [[[params]]]);
+
+        if (self::$HaltSPOnError && $res->error) {
+            Debug($res);
+        }
+        return $res;
+    }
+}

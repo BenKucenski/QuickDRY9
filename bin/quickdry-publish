@@ -1,0 +1,71 @@
+#!/usr/bin/env php
+<?php
+/**
+ * Copies QuickDRY's browser assets (js, css, images, controls) out of vendor/
+ * into <project>/QuickDRY/ so URLs like /QuickDRY/js/QuickDRY.js keep working.
+ *
+ * Usage:
+ *   php vendor/benkucenski/quickdry8/bin/quickdry-publish [project-root]
+ *
+ * Run automatically by adding to your project's composer.json:
+ *   "scripts": {
+ *     "post-install-cmd": ["@php vendor/benkucenski/quickdry8/bin/quickdry-publish"],
+ *     "post-update-cmd":  ["@php vendor/benkucenski/quickdry8/bin/quickdry-publish"]
+ *   }
+ */
+
+$source = realpath(__DIR__ . '/../QuickDRY');
+$root = $argv[1] ?? getcwd();
+$target = rtrim($root, '/\\') . DIRECTORY_SEPARATOR . 'QuickDRY';
+
+if (!$source || !is_dir($source)) {
+    fwrite(STDERR, "quickdry-publish: cannot find QuickDRY source folder\n");
+    exit(1);
+}
+
+if (realpath($target) === $source) {
+    // Running inside the QuickDRY repo itself; nothing to do.
+    echo "quickdry-publish: source and target are the same, skipping\n";
+    exit(0);
+}
+
+$folders = ['js', 'css', 'images', 'controls'];
+
+/**
+ * @param string $from
+ * @param string $to
+ * @return int number of files copied
+ */
+function quickdry_copy_dir(string $from, string $to): int
+{
+    $count = 0;
+    if (!is_dir($to) && !mkdir($to, 0775, true) && !is_dir($to)) {
+        throw new RuntimeException("Cannot create $to");
+    }
+    $it = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($from, FilesystemIterator::SKIP_DOTS),
+        RecursiveIteratorIterator::SELF_FIRST
+    );
+    foreach ($it as $item) {
+        $dest = $to . DIRECTORY_SEPARATOR . substr($item->getPathname(), strlen($from) + 1);
+        if ($item->isDir()) {
+            if (!is_dir($dest)) {
+                mkdir($dest, 0775, true);
+            }
+        } else {
+            copy($item->getPathname(), $dest);
+            $count++;
+        }
+    }
+    return $count;
+}
+
+$total = 0;
+foreach ($folders as $folder) {
+    $from = $source . DIRECTORY_SEPARATOR . $folder;
+    if (is_dir($from)) {
+        $total += quickdry_copy_dir($from, $target . DIRECTORY_SEPARATOR . $folder);
+    }
+}
+
+echo "quickdry-publish: copied $total files to $target\n";
