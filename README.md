@@ -1,8 +1,8 @@
-# QuickDRY8
+# QuickDRY9
 
 A lightweight PHP 8 web framework: folder-based page routing, MySQL / MSSQL / Access connectors, database-to-code generation, JWT API security, mailer, and assorted utilities.
 
-This repository is a Composer package (`benkucenski/quickdry8`). The `skeleton/` folder is a ready-to-run starter app that uses it.
+This repository is a Composer package (`benkucenski/quickdry9`). The `skeleton/` folder is a ready-to-run starter app that uses it.
 
 ## Start a new project
 
@@ -23,14 +23,14 @@ Add this to the project's `composer.json`:
 ```json
 {
   "repositories": [
-    { "type": "vcs", "url": "https://github.com/BenKucenski/QuickDRY8" }
+    { "type": "vcs", "url": "https://github.com/BenKucenski/QuickDRY9" }
   ],
   "require": {
-    "benkucenski/quickdry8": "dev-main"
+    "benkucenski/quickdry9": "dev-main"
   },
   "scripts": {
-    "post-install-cmd": ["@php vendor/benkucenski/quickdry8/bin/quickdry-publish"],
-    "post-update-cmd":  ["@php vendor/benkucenski/quickdry8/bin/quickdry-publish"]
+    "post-install-cmd": ["@php vendor/benkucenski/quickdry9/bin/quickdry-publish"],
+    "post-update-cmd":  ["@php vendor/benkucenski/quickdry/bin/quickdry-publish"]
   }
 }
 ```

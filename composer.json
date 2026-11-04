@@ -1,5 +1,5 @@
 {
-  "name": "benkucenski/quickdry8",
+  "name": "benkucenski/quickdry9",
   "description": "QuickDRY: a lightweight PHP 8 web framework with MySQL/MSSQL connectors, code generation, and page routing.",
   "type": "library",
   "license": "proprietary",
@@ -9,7 +9,7 @@
       "email": "bkucenski@gmail.com"
     }
   ],
-  "homepage": "https://github.com/BenKucenski/QuickDRY8",
+  "homepage": "https://github.com/BenKucenski/QuickDRY9",
   "require": {
     "php": ">=8.0",
     "ext-curl": "*",
