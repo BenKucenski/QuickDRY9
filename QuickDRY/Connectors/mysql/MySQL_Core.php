@@ -860,6 +860,7 @@ class MySQL_Core extends SQL_Base implements ISQLCore
                 return $value ? Dates::Timestamp($value) : null;
 
             case 'text':
+            case 'json':
             case 'mediumtext':
             case 'longtext':
                 return (string)$value;
