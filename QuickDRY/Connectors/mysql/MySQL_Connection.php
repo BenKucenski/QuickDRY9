@@ -102,7 +102,7 @@ WHERE SCHEMA_NAME = :SCHEMA_NAME
         if(!$db_base) {
             $db_base = '';
         }
-        
+
         if ($this->db) {
             $this->db_conns[$this->current_db] = null;
             $this->current_db = null;
