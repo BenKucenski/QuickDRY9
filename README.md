@@ -30,7 +30,7 @@ Add this to the project's `composer.json`:
   },
   "scripts": {
     "post-install-cmd": ["@php vendor/benkucenski/quickdry9/bin/quickdry-publish"],
-    "post-update-cmd":  ["@php vendor/benkucenski/quickdry/bin/quickdry-publish"]
+    "post-update-cmd":  ["@php vendor/benkucenski/quickdry9/bin/quickdry-publish"]
   }
 }
 ```
