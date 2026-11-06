@@ -215,10 +215,10 @@ WHERE SCHEMA_NAME = :SCHEMA_NAME
             $aff = 0;
 
             if ($large || strlen($sql) > 128 * 1024) {
-                if (!is_dir('sql')) {
-                    mkdir('sql');
+                if (!is_dir(DATA_FOLDER . '/sql')) {
+                    mkdir(DATA_FOLDER . '/sql');
                 }
-                $fname = 'sql/' . time() . rand(0, 1000000) . '.mysql.txt';
+                $fname = DATA_FOLDER . '/sql/' . time() . rand(0, 1000000) . '.mysql.txt';
                 $fp = fopen($fname, 'w');
                 $tries = 0;
                 while (!$fp && $tries < 3) {
