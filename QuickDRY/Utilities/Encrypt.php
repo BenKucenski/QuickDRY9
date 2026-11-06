@@ -3,6 +3,8 @@ declare(strict_types=1);
 // https://stackoverflow.com/questions/10916284/how-to-encrypt-decrypt-data-in-php
 namespace QuickDRY\Utilities;
 
+use Exception;
+
 /**
  * Class Encrypt
  */
@@ -22,6 +24,7 @@ class Encrypt extends strongType
 
     /**
      * @return string
+     * @throws Exception
      */
     public static function GetPrivateKey(): string
     {
@@ -52,6 +55,7 @@ class Encrypt extends strongType
 
     /**
      * @return string
+     * @throws Exception
      */
     public static function GetPublicKey(): string
     {

@@ -29,7 +29,7 @@ class strongType implements JsonSerializable
     {
         // Use Reflection to access all static properties, including protected/private ones
         $reflection = new ReflectionClass(static::class);
-        $staticProperties = $reflection->getProperties(\ReflectionProperty::IS_STATIC);
+        $staticProperties = $reflection->getProperties(ReflectionProperty::IS_STATIC);
 
         $data = [];
 

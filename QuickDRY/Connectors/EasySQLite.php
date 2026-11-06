@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace QuickDRY\Connectors;
 
+use Exception;
 use SQLite3;
 
 /**
@@ -15,6 +16,7 @@ class EasySQLite extends SQLite3
     /**
      * EasySQLite constructor.
      * @param string $file
+     * @throws Exception
      */
     public function __construct(string $file)
     {

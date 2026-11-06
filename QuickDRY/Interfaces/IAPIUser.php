@@ -19,9 +19,9 @@ interface IAPIUser
 
     /**
      * @param string $client_id
-     * @return self
+     * @return ?self
      */
-    public static function GetForClientId(string $client_id): self;
+    public static function GetForClientId(string $client_id): ?self;
 
     /**
      * @param string $client_secret

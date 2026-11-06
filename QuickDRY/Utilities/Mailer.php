@@ -297,7 +297,7 @@ class Mailer extends strongType
         $attachments = json_decode($this->headers, true);
         if (json_last_error() !== JSON_ERROR_NONE) {
             // Legacy rows; only allow the one expected class to be instantiated
-            $attachments = @unserialize($this->headers, ['allowed_classes' => ['EmailAttachment']]);
+            $attachments = unserialize($this->headers, ['allowed_classes' => ['EmailAttachment']]);
         }
 
         return is_array($attachments) ? $attachments : [];

@@ -318,6 +318,9 @@ class SQLCodeGen extends strongType
                 $isset = [];
                 $get_params = [];
                 foreach ($fk->column_name as $i => $col) {
+                    if(!is_string($col)) {
+                        Exception($col);
+                    }
                     $isset[] = '$this->' . $col;
                     $get_params[] = "'" . $fk->foreign_column_name[$i] . "'=>\$this->" . $col;
                 }
@@ -381,6 +384,9 @@ class SQLCodeGen extends strongType
                 $isset = [];
                 $get_params = [];
                 foreach ($fk->column_name as $i => $col) {
+                    if(!is_string($col)) {
+                        Exception($col);
+                    }
                     $isset[] = '$this->' . $col;
                     $get_params[] = "'" . $fk->foreign_column_name[$i] . "'=>\$this->" . $col;
                 }

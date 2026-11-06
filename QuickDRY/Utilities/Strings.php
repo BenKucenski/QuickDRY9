@@ -842,19 +842,6 @@ class Strings extends strongType
     }
 
     /**
-     * @param $row
-     * @return void
-     * @deprecated This method is deprecated and should not be used.
-     */
-    #[NoReturn]
-    private static function RowToJSON($row): void
-    {
-        Exception('Deprecated');
-
-
-    }
-
-    /**
      * @param $val
      * @return mixed
      */
@@ -877,18 +864,6 @@ class Strings extends strongType
 
         return $val;
     }
-
-    /**
-     * @param $input
-     * @return void
-     * @deprecated This method is deprecated and should not be used.
-     */
-    #[NoReturn]
-    public static function FixJSON($input): void
-    {
-        Exception('Deprecated');
-    }
-
 
     /**
      * @param $txt

@@ -90,7 +90,7 @@ class MSSQL extends strongType
         /**
          * Pattern behavior:
          *  - Eats quoted strings first (single or double) so we don't replace inside them.
-         *  - Then matches only @name placeholders (captures name in group 1).
+         *  - Then matches only named placeholders (captures name in group 1).
          *  - Guards against @@ (e.g., @@ROWCOUNT) via (?<!@).
          *  - Also avoids matching when @ is part of an identifier by requiring it not be preceded by [A-Za-z0-9_].
          */

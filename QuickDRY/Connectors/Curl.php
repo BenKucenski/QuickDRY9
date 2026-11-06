@@ -86,9 +86,9 @@ class Curl
 
             $client = new Client(self::$options);
             $response = $client->post($path, [
-                'form_params' => $params,
-                'headers'     => $additional_headers,
-                'http_errors' => false,
+                RequestOptions::FORM_PARAMS => $params,
+                'headers'                   => $additional_headers,
+                'http_errors'               => false,
             ]);
 
             CurlLog::Log($path, $params, microtime(true) - $start, 'Post');

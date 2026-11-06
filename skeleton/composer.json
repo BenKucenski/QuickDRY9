@@ -9,7 +9,7 @@
     }
   ],
   "require": {
-    "php": ">=8.0",
+    "php": ">=8.4",
     "benkucenski/quickdry9": "dev-main"
   },
   "scripts": {

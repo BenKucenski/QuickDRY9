@@ -59,6 +59,7 @@ class Security extends strongType
     /**
      * @param string|null $plaintext
      * @return string|null
+     * @throws Exception
      */
     public static function encrypt(?string $plaintext): ?string
     {
@@ -66,10 +67,14 @@ class Security extends strongType
             return null;
         }
 
+        if(!defined('MASTER_SECRET_KEY') || !MASTER_SECRET_KEY) {
+            Exception('MASTER_SECRET_KEY not set');
+        }
+
         $tag = '';
         $ivlen = openssl_cipher_iv_length(self::$cipher);
         $iv = openssl_random_pseudo_bytes($ivlen);
-        $ciphertext = openssl_encrypt($plaintext, self::$cipher, MASTER_SECRET_KEY, 0, $iv, $tag);
+        $ciphertext = openssl_encrypt($plaintext, self::$cipher, (string)MASTER_SECRET_KEY, 0, $iv, $tag);
         //store $cipher, $iv, and $tag for decryption later
 
         return $ciphertext . '::' . base64_encode($iv) . '::' . base64_encode($tag ?? '');
@@ -81,11 +86,15 @@ class Security extends strongType
      */
     public static function decrypt($ciphertext): bool|string
     {
+        if(!defined('MASTER_SECRET_KEY') || !MASTER_SECRET_KEY) {
+            Exception('MASTER_SECRET_KEY not set');
+        }
+
         $parts = explode('::', $ciphertext);
         return openssl_decrypt(
             $parts[0],
             self::$cipher,
-            MASTER_SECRET_KEY,
+            (string)MASTER_SECRET_KEY,
             0,
             base64_decode($parts[1] ?? ''),
             base64_decode($parts[2] ?? '')
@@ -380,7 +389,7 @@ class Security extends strongType
         }
 
         // https://stackoverflow.com/questions/48017856/correct-way-to-use-php-openssl-encrypt
-        $passphrase = hash('sha256', URL_SECRET_KEY);
+        $passphrase = hash('sha256', (string)URL_SECRET_KEY);
         $iv = substr(hash('sha256', $passphrase), 0, 16);
 
         // base64 encode to make it URL safe
@@ -411,7 +420,7 @@ class Security extends strongType
 
         $data = base64_decode($data);
 
-        $passphrase = hash('sha256', URL_SECRET_KEY);
+        $passphrase = hash('sha256', (string)URL_SECRET_KEY);
         $iv = substr(hash('sha256', $passphrase), 0, 16);
 
         $check = openssl_decrypt(

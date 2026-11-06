@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 // require modules.php in command line scripts
 
 ini_set('display_errors', 1);

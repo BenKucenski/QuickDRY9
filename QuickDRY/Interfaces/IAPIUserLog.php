@@ -25,8 +25,14 @@ interface IAPIUserLog
         set;
     }
 
+    public string|null $host {
+        get;
+        set;
+    }
+
+
     /**
-     * @return mixed
+     * @return void
      */
-    public function Save(): mixed;
+    public function Save(): void;
 }

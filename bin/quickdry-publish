@@ -1,5 +1,6 @@
 #!/usr/bin/env php
 <?php
+declare(strict_types=1);
 /**
  * Copies QuickDRY's browser assets (js, css, images, controls) out of vendor/
  * into <project>/QuickDRY/ so URLs like /QuickDRY/js/QuickDRY.js keep working.

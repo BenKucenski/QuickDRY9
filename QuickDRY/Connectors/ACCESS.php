@@ -12,7 +12,7 @@ use Exception;
  */
 class ACCESS
 {
-    protected $connection = null;
+    protected mixed $connection = null;
     protected ?string $ACCESS_FILE = null;
     protected ?string $ACCESS_USER = null;
     protected ?string $ACCESS_PASS = null;

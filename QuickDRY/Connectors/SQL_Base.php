@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace QuickDRY\Connectors;
 
+use Exception;
 use JsonSerializable;
 use models\ChangeLogHistory;
 use QuickDRY\Utilities\SimpleExcel;
@@ -249,6 +250,7 @@ class SQL_Base implements JsonSerializable
     /**
      * @param string $name
      * @return mixed
+     * @throws Exception
      */
     public function __get(string $name)
     {
@@ -278,6 +280,7 @@ class SQL_Base implements JsonSerializable
      * @param string $name
      * @param mixed $value
      * @return mixed
+     * @throws Exception
      */
     public function __set(string $name, mixed $value)
     {
@@ -403,7 +406,7 @@ class SQL_Base implements JsonSerializable
      */
     public static function GetVars(): array
     {
-        return array_map(function ($def) {
+        return array_map(function () {
             return null;
         }, static::$prop_definitions);
     }
@@ -411,6 +414,7 @@ class SQL_Base implements JsonSerializable
     /**
      * @param string|null $name
      * @return mixed|null
+     * @throws Exception
      */
     protected function GetProperty(?string $name = null): mixed
     {
@@ -435,6 +439,7 @@ class SQL_Base implements JsonSerializable
      * @param bool $null_string
      * @param array|null $prop_definitions
      * @return array
+     * @throws Exception
      */
     public static function _ToArray(array $arr, bool $null_string = false, ?array $prop_definitions = null): array
     {
@@ -456,6 +461,7 @@ class SQL_Base implements JsonSerializable
 
     /**
      * @return array
+     * @throws Exception
      */
     public function toArray(): array
     {
@@ -464,6 +470,7 @@ class SQL_Base implements JsonSerializable
 
     /**
      * @return array
+     * @throws Exception
      */
     public function ToJSONArray(): array
     {
@@ -474,6 +481,7 @@ class SQL_Base implements JsonSerializable
      * @param $name
      * @param $value
      * @return mixed|string|null
+     * @throws Exception
      */
     protected function SetProperty($name, $value): mixed
     {
@@ -875,11 +883,11 @@ class SQL_Base implements JsonSerializable
                         default:
                             // if it's a class/interface type, you may need to handle
                             // conversion (e.g., json_decode to object, or construct new instance)
-                            if ($value instanceof $typeName) {
-                                // already the right type
-                            } elseif (is_array($value) && class_exists($typeName)) {
-                                // optionally: hydrate object from array
-                                $value = new $typeName(...$value);
+                            if (!$value instanceof $typeName) {
+                                if (is_array($value) && class_exists($typeName)) {
+                                    // optionally: hydrate object from array
+                                    $value = new $typeName(...$value);
+                                }
                             }
                             break;
                     }
@@ -957,6 +965,7 @@ class SQL_Base implements JsonSerializable
     /**
      * @param self[] $items
      * @return SimpleExcel|null
+     * @throws Exception
      */
     public static function toExcel(array $items): ?SimpleExcel
     {
@@ -1102,6 +1111,7 @@ class SQL_Base implements JsonSerializable
 
     /**
      * @return array
+     * @throws Exception
      */
     public function jsonSerialize(): array
     {

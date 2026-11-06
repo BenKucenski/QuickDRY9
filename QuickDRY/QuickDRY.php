@@ -68,28 +68,36 @@ function Debug(...$args): void
         mkdir(DATA_FOLDER . '/logs');
     }
 
+    $secrets   = DebugSecretValues();
+    $cleanArgs = DebugRedact($args, $secrets);
+    $backtrace = DebugRedact(debug_backtrace(), $secrets);
+
     $code = time() . '.' . rand(0, 1000000);
     $file = DATA_FOLDER . '/logs/' . $code . '.txt';
     $data = json_encode([
-        'server'    => $_SERVER ?? null,
-        'session'   => $_SESSION ?? null,
-        'data'      => $args,
-        'backtrace' => debug_backtrace(),
-    ], JSON_PRETTY_PRINT);
+        'server'    => DebugRedact($_SERVER ?? null, $secrets),
+        'session'   => DebugRedact($_SESSION ?? null, $secrets),
+        'data'      => $cleanArgs,
+        'backtrace' => $backtrace,
+    ], JSON_PRETTY_PRINT | JSON_PARTIAL_OUTPUT_ON_ERROR);
     file_put_contents($file, $data);
 
     if (defined('SEND_DEBUG_EMAILS') && SEND_DEBUG_EMAILS) {
+        if(!defined('SMTP_DEBUG_EMAIL') || !SMTP_DEBUG_EMAIL) {
+            exit('SMTP_DEBUG_EMAIL not set');
+        }
         $email = Mailer::Queue(
-            SMTP_DEBUG_EMAIL,
-            SMTP_DEBUG_EMAIL,
+            (string)SMTP_DEBUG_EMAIL,
+            (string)SMTP_DEBUG_EMAIL,
             defined('JS_ERROR') && JS_ERROR ? 'JS Error' : 'PHP Error',
             (string)$data
         );
-        $email->Send();
-
-
+        try {
+            $email->Send();
+        } catch (Exception $e) {
+            exit($e->getMessage());
+        }
     }
-
 
     if (!defined('CONST_OUTPUT_ERRORS') || !CONST_OUTPUT_ERRORS) {
         if (function_exists('post_debug_handler')) {
@@ -98,7 +106,70 @@ function Debug(...$args): void
         exit('<p>An Error Occurred: ' . $code . '</p>');
     }
 
-    dd(['data' => $args, 'backtrace' => debug_backtrace()]);
+    dd(['data' => $cleanArgs, 'backtrace' => $backtrace]);
+}
+
+/**
+ * Map of [constant value => "[CONSTANT_NAME]"] for every user-defined
+ * string constant worth hiding.
+ */
+function DebugSecretValues(): array
+{
+    // Constants that are safe to show (and would just add noise if redacted)
+    $skip = ['DATA_FOLDER', 'SEND_DEBUG_EMAILS', 'CONST_OUTPUT_ERRORS', 'JS_ERROR'];
+
+    $secrets = [];
+    foreach (get_defined_constants(true)['user'] ?? [] as $name => $value) {
+        if (in_array($name, $skip, true)) {
+            continue;
+        }
+        // Skip bools/ints and very short strings ("1", "on", "") —
+        // redacting those would mangle half the output.
+        if (!is_string($value) || strlen($value) < 4) {
+            continue;
+        }
+        $secrets[$value] = '[' . $name . ']';
+    }
+
+    return $secrets;
+}
+
+/**
+ * Recursively replace any secret values found in strings.
+ * Objects are flattened to their public properties (same as json_encode sees).
+ */
+function DebugRedact($value, array $secrets, int $depth = 0)
+{
+    if ($depth > 10) {
+        return '[max depth]';
+    }
+
+    if (is_string($value)) {
+        // strtr with an array tries the longest keys first, so overlapping values are handled
+        return $secrets ? strtr($value, $secrets) : $value;
+    }
+
+    if (is_array($value)) {
+        return array_map(function ($v) use ($depth, $secrets) {
+            return DebugRedact($v, $secrets, $depth + 1);
+        }, $value);
+    }
+
+    if (is_object($value)) {
+        if ($value instanceof Closure) {
+            return '[Closure]';
+        }
+        if ($value instanceof JsonSerializable) {
+            return DebugRedact($value->jsonSerialize(), $secrets, $depth + 1);
+        }
+        $out = ['__class' => get_class($value)];
+        foreach (get_object_vars($value) as $k => $v) {
+            $out[$k] = DebugRedact($v, $secrets, $depth + 1);
+        }
+        return $out;
+    }
+
+    return $value; // int, float, bool, null, resource
 }
 
 /**
