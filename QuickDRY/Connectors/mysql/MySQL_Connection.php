@@ -236,6 +236,12 @@ WHERE SCHEMA_NAME = :SCHEMA_NAME
 
                 $file = 'mysql_config.' . GUID . '.cnf';
                 $fp = fopen($file, 'w');
+                if (!$fp) {
+                    if (!static::$keep_files && file_exists($fname)) {
+                        unlink($fname);
+                    }
+                    Exception('QuickDRY Error: error writing mysql config file ' . $file);
+                }
                 fwrite(
                     $fp, '
 [client]
@@ -248,18 +254,31 @@ database = ' . $this->current_db . '
                 fclose($fp);
 
                 $output = [];
-                // -x turns off variable interpretation - must be set
-                $cmd = 'mysql --defaults-extra-file="' . $file . '" -P' . $this->DB_PORT . ' < ' . $fname;
-                $res = exec($cmd, $output);
+                $exit_code = -1;
+                // 2>&1 sends mysql's error messages (and shell errors like "command not found") into $output
+                $cmd = 'mysql --defaults-extra-file="' . $file . '" -P' . $this->DB_PORT . ' < "' . $fname . '" 2>&1';
+                $res = exec($cmd, $output, $exit_code);
 
-                $exec = $cmd . PHP_EOL . PHP_EOL . $res . PHP_EOL . PHP_EOL . implode(PHP_EOL, $output);
+                $exec = $cmd . PHP_EOL . PHP_EOL . 'exit code: ' . $exit_code . PHP_EOL . PHP_EOL . implode(PHP_EOL, $output);
+
                 $error = '';
+                if ($res === false) {
+                    $error = 'QuickDRY Error: exec() failed to run the mysql command line client (is exec disabled?)';
+                } elseif ($exit_code !== 0) {
+                    $message = trim(implode(PHP_EOL, $output));
+                    $error = 'QuickDRY Error: mysql command line client exited with code ' . $exit_code
+                        . ($message !== '' ? ': ' . $message : ' and no output (is mysql on the PATH for this user?)');
+                }
 
                 if (!static::$keep_files) {
                     unlink($fname);
                 }
                 if (file_exists($file)) {
                     unlink($file);
+                }
+
+                if ($error) {
+                    $this->Log($sql, microtime(true) - $start, $error);
                 }
 
                 Metrics::Stop('MySQL: ' . $query_hash);
