@@ -214,7 +214,7 @@ WHERE SCHEMA_NAME = :SCHEMA_NAME
             $last_id = 0;
             $aff = 0;
 
-            if ($large || strlen($sql) > 128 * 1024) {
+            if ($large) {
                 if (!is_dir(DATA_FOLDER . '/sql')) {
                     mkdir(DATA_FOLDER . '/sql');
                 }
