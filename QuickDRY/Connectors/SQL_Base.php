@@ -61,7 +61,7 @@ class SQL_Base implements JsonSerializable
         }
 
         $database_prefix = $use_database_type_prefix ? strtolower($database_prefix) : '';
-        $t = explode('_', ($database_prefix !== '' ? $database_prefix . '_' : '') . $table);
+        $t = explode('_', ($use_database_type_prefix && $database_prefix !== '' ? $database_prefix . '_' : '') . $table);
 
         $type = '';
         foreach ($t as $w) {
