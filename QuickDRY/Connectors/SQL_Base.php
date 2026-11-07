@@ -51,16 +51,17 @@ class SQL_Base implements JsonSerializable
      * @param $table
      * @param $lowercase_table
      * @param $database_type_prefix
+     * @param bool $use_database_type_prefix
      * @return string
      */
-    public static function TableToClass($database_prefix, $table, $lowercase_table, $database_type_prefix): string
+    public static function TableToClass($database_prefix, $table, $lowercase_table, $database_type_prefix, bool $use_database_type_prefix = true): string
     {
         if ($lowercase_table) {
             $table = strtolower($table);
         }
 
-        $database_prefix = strtolower($database_prefix);
-        $t = explode('_', $database_prefix . '_' . $table);
+        $database_prefix = $use_database_type_prefix ? strtolower($database_prefix) : '';
+        $t = explode('_', ($database_prefix !== '' ? $database_prefix . '_' : '') . $table);
 
         $type = '';
         foreach ($t as $w) {
@@ -69,7 +70,7 @@ class SQL_Base implements JsonSerializable
         $type .= 'Class';
         if (is_numeric($type[0]))
             $type = 'i' . $type;
-        return $database_type_prefix . '_' . $type;
+        return ($use_database_type_prefix && $database_type_prefix !== '' ? $database_type_prefix . '_' : '') . $type;
     }
 
     /**
@@ -77,9 +78,10 @@ class SQL_Base implements JsonSerializable
      * @param $table
      * @param $lowercase_table
      * @param $database_type_prefix
+     * @param bool $use_database_type_prefix
      * @return string
      */
-    public static function StoredProcToClass($database_prefix, $table, $lowercase_table, $database_type_prefix): string
+    public static function StoredProcToClass($database_prefix, $table, $lowercase_table, $database_type_prefix, bool $use_database_type_prefix = true): string
     {
         // note: we need to leave underscores in
         // underscores are valid PHP and a naming choice for developers
@@ -87,8 +89,8 @@ class SQL_Base implements JsonSerializable
             $table = strtolower($table);
         }
 
-        $database_prefix = strtolower($database_prefix);
-        $t = explode('_', $database_prefix . '_' . $table);
+        $database_prefix = $use_database_type_prefix ? strtolower($database_prefix) : '';
+        $t = explode('_', ($database_prefix !== '' ? $database_prefix . '_' : '') . $table);
 
         $type = [];
         foreach ($t as $w) {
@@ -99,7 +101,7 @@ class SQL_Base implements JsonSerializable
         if (is_numeric($type[0])) {
             $type = 'i' . $type;
         }
-        return $database_type_prefix . '_' . $type;
+        return ($use_database_type_prefix && $database_type_prefix !== '' ? $database_type_prefix . '_' : '') . $type;
     }
 
     /**
@@ -821,9 +823,9 @@ class SQL_Base implements JsonSerializable
 
         if ($modify) {
             $res .= '
-   			<td class="data_text">
-   				<a href="#"  onclick="' . get_base_class($this) . '.Load(' . $this->{static::$_primary[0]} . ')"><i class="fa fa-edit"></i></a>
-   			';
+          <td class="data_text">
+             <a href="#"  onclick="' . get_base_class($this) . '.Load(' . $this->{static::$_primary[0]} . ')"><i class="fa fa-edit"></i></a>
+          ';
             if (is_array($custom_link)) {
                 $res .= '<a class="btn btn-primary btn-sm" href="' . $custom_link['page'] . '?' . static::$_primary[0] . '=' . $this->{static::$_primary[0]} . '">' . $custom_link['title'] . '</a>';
             }
