@@ -1,7 +1,6 @@
 <?php
 declare(strict_types=1);
 
-
 use QuickDRY\Connectors\mssql\MSSQL_CodeGen;
 
 $opts = 'd::';
@@ -16,6 +15,7 @@ $opts .= 'o::';
 $opts .= 'j::';
 $opts .= 's::';
 $opts .= 'z::';
+$opts .= 'p::';
 
 $options = getopt($opts);
 
@@ -31,18 +31,26 @@ $_DATABASE_CLASS = $options['o'] ?? null;
 $_GENERATE_JSON = $options['j'] ?? true;
 $_SCHEMA_ONLY = $options['s'] ?? false;
 $_STARTING_TABLE = $options['z'] ?? null;
+$_USE_DATABASE_TYPE_PREFIX = (bool)($options['p'] ?? true);
 
-if($_STARTING_TABLE) {
+if ($_STARTING_TABLE) {
     define('STARTING_TABLE', $_STARTING_TABLE);
 }
 
-if(!$_DATABASE) {
-    exit(basename(__FILE__) . ' usage: -d<database> -c<database constant optional> -u<user class> -v<user variable> -i<user id column>' . PHP_EOL);
+if (!$_DATABASE) {
+    exit(
+        basename(__FILE__) .
+        ' usage: -d<database> -c<database constant optional>' .
+        ' -u<user class> -v<user variable> -i<user id column>' .
+        ' -p<use database type prefix: 1 or 0, default 1>' .
+        PHP_EOL
+    );
 }
 
 include __DIR__ . '/../modules.php';
 
 $CodeGen = new MSSQL_CodeGen();
+
 $CodeGen->Init(
     $_DATABASE,
     $_DATABASE_CONSTANT,
@@ -54,11 +62,13 @@ $CodeGen->Init(
     $_USE_FK_COLUMN_NAME,
     $_DATABASE_CLASS,
     (bool)$_GENERATE_JSON,
-    __DIR__ . '/..'
+    __DIR__ . '/..',
+    $_USE_DATABASE_TYPE_PREFIX
 );
-if($_SCHEMA_ONLY) {
-	$CodeGen->DumpSchema();
+
+if ($_SCHEMA_ONLY) {
+    $CodeGen->DumpSchema();
 } else {
-	$CodeGen->GenerateClasses();
-	$CodeGen->GenerateJSON();
+    $CodeGen->GenerateClasses();
+    $CodeGen->GenerateJSON();
 }

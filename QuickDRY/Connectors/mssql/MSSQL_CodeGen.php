@@ -24,6 +24,7 @@ class MSSQL_CodeGen extends SQLCodeGen
      * @param string|null $DatabaseClass
      * @param bool $GenerateJSON
      * @param string $DestinationFolder
+     * @param bool $UseDatabaseTypePrefix
      * @return void
      */
     public function Init(
@@ -37,7 +38,8 @@ class MSSQL_CodeGen extends SQLCodeGen
         $use_fk_column_name,
         ?string $DatabaseClass = null,
         bool $GenerateJSON = true,
-        string $DestinationFolder = '../httpdocs'
+        string $DestinationFolder = '../httpdocs',
+        bool $UseDatabaseTypePrefix = true
     ): void
     {
         if($DatabaseClass && $DatabaseClass[0] != '\\') {
@@ -67,6 +69,7 @@ class MSSQL_CodeGen extends SQLCodeGen
         $this->LowerCaseTables = (int)$lowercase_tables;
         $this->UseFKColumnName = (int)$use_fk_column_name;
         $this->GenerateJSON = $GenerateJSON;
+        $this->UseDatabaseTypePrefix = $UseDatabaseTypePrefix;
 
         $DatabaseClass::SetDatabase($this->Database);
 

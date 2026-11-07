@@ -22,7 +22,7 @@ class ACCESS
      */
     public function __destruct()
     {
-        if(!$this->connection) {
+        if (!$this->connection) {
             return;
         }
         odbc_close($this->connection);
@@ -38,7 +38,7 @@ class ACCESS
         if ($params) {
             foreach ($params as $k => $v) {
                 $v = str_replace('\'', '\'\'', $v);
-                if(is_numeric($v) && strcasecmp($v, intval($v) . '') === 0) {
+                if (is_numeric($v) && strcasecmp($v, intval($v) . '') === 0) {
                     $sql = str_replace('@' . $k, $v, $sql);
                 } else {
                     $sql = str_replace('@' . $k, '\'' . trim($v) . '\'', $sql);
@@ -61,15 +61,15 @@ class ACCESS
         bool    $skip_check = false
     )
     {
-        if(!file_exists($file)) {
+        if (!file_exists($file)) {
             Exception('could not find database: ' . $file);
         }
 
 
-        while(!$skip_check && file_exists(str_ireplace('.tmo', '.ldb', $file))) {
+        while (!$skip_check && file_exists(str_ireplace('.tmo', '.ldb', $file))) {
             // https://stackoverflow.com/questions/15322371/php-wait-for-input-from-command-line
             echo 'Database in Use By Another Program.  Please Exit All Instances of TMO' . PHP_EOL;
-            $handle = fopen ('php://stdin', 'r');
+            $handle = fopen('php://stdin', 'r');
             fgets($handle);
             fclose($handle);
         }
@@ -101,10 +101,10 @@ class ACCESS
         $res = odbc_exec($this->connection, $query);
         if (odbc_error($this->connection)) {
             Exception([
-                'sql' => $sql,
-                'params' => $params,
-                'query' => $query,
-                'error' => 'ACCESS',
+                'sql'           => $sql,
+                'params'        => $params,
+                'query'         => $query,
+                'error'         => 'ACCESS',
                 'odbc_errormsg' => odbc_errormsg($this->connection),
             ]);
         }
@@ -132,10 +132,10 @@ class ACCESS
         odbc_exec($this->connection, $query);
         if (odbc_error($this->connection)) {
             Exception([
-                'sql' => $sql,
-                'params' => $params,
-                'query' => $query,
-                'error' => 'ACCESS',
+                'sql'           => $sql,
+                'params'        => $params,
+                'query'         => $query,
+                'error'         => 'ACCESS',
                 'odbc_errormsg' => odbc_errormsg($this->connection),
             ]);
         }
@@ -159,10 +159,10 @@ class ACCESS
         $res = odbc_exec($this->connection, $query);
         if (odbc_error($this->connection)) {
             Exception([
-                'sql' => $sql,
-                'params' => $params,
-                'query' => $query,
-                'error' => 'ACCESS',
+                'sql'           => $sql,
+                'params'        => $params,
+                'query'         => $query,
+                'error'         => 'ACCESS',
                 'odbc_errormsg' => odbc_errormsg($this->connection),
             ]);
         }

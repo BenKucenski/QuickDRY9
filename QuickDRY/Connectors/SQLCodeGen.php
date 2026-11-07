@@ -15,36 +15,54 @@ use QuickDRY\Utilities\strongType;
  */
 class SQLCodeGen extends strongType
 {
-    protected ?string $DestinationFolder= null;
-    protected ?string $Database= null;
-    protected ?string $DatabaseConstant= null;
-    protected ?string $DatabasePrefix= null;
-    protected ?string $UserClass= null;
-    protected ?string $UserVar= null;
-    protected ?string $UserIdColumn= null;
-    protected ?string $MasterPage= null;
-    protected ?array $Tables= null;
-    protected ?int $LowerCaseTables= null;
-    protected ?int $UseFKColumnName= null;
-    protected ?string $DatabaseTypePrefix= null;
-    protected ?string $DatabaseClass= null;
-    protected ?string $DatabaseType= null;
-    protected ?bool $GenerateJSON= null;
+    protected ?string $DestinationFolder = null;
+    protected ?string $Database = null;
+    protected ?string $DatabaseConstant = null;
+    protected ?string $DatabasePrefix = null;
+    protected ?string $UserClass = null;
+    protected ?string $UserVar = null;
+    protected ?string $UserIdColumn = null;
+    protected ?string $MasterPage = null;
+    protected ?array $Tables = null;
+    protected ?int $LowerCaseTables = null;
+    protected ?int $UseFKColumnName = null;
+    protected ?string $DatabaseTypePrefix = null;
+    protected bool $UseDatabaseTypePrefix = true;
+    protected ?string $DatabaseClass = null;
+    protected ?string $DatabaseType = null;
+    protected ?bool $GenerateJSON = null;
 
-    protected ?string $CommonFolder= null;
-    protected ?string $CommonClassFolder= null;
-    protected ?string $CommonClassDBFolder= null;
-    protected ?string $CommonClassSPFolder= null;
-    protected ?string $CommonClassSPDBFolder= null;
-    protected ?string $PagesBaseJSONFolder= null;
-    protected ?string $PagesJSONFolder= null;
-    protected ?string $PagesJSONControlsFolder= null;
+    protected ?string $CommonFolder = null;
+    protected ?string $CommonClassFolder = null;
+    protected ?string $CommonClassDBFolder = null;
+    protected ?string $CommonClassSPFolder = null;
+    protected ?string $CommonClassSPDBFolder = null;
+    protected ?string $PagesBaseJSONFolder = null;
+    protected ?string $PagesJSONFolder = null;
+    protected ?string $PagesJSONControlsFolder = null;
 
-    protected ?string $PagesBaseManageFolder= null;
-    protected ?string $PagesManageFolder= null;
-    protected ?string $PagesPHPUnitFolder= null;
+    protected ?string $PagesBaseManageFolder = null;
+    protected ?string $PagesManageFolder = null;
+    protected ?string $PagesPHPUnitFolder = null;
 
     public static ?bool $UseChangeLog = true;
+
+    /**
+     * @return string
+     */
+    protected function NamingDatabaseTypePrefix(): string
+    {
+        return $this->UseDatabaseTypePrefix ? ($this->DatabaseTypePrefix ?? '') : '';
+    }
+
+    /**
+     * @return string
+     */
+    protected function DatabaseFolderName(): string
+    {
+        $prefix = $this->NamingDatabaseTypePrefix();
+        return ($prefix !== '' ? $prefix . '_' : '') . strtolower($this->DatabasePrefix ?? '');
+    }
 
     /**
      * @return void
@@ -52,11 +70,11 @@ class SQLCodeGen extends strongType
     protected function CreateDirectories(): void
     {
         $this->CommonFolder = $this->DestinationFolder . '/common';
-        $this->CommonClassFolder = $this->DestinationFolder . '/common/' . $this->DatabaseTypePrefix . '_' . strtolower($this->DatabasePrefix);
-        $this->CommonClassDBFolder = $this->DestinationFolder . '/common/' . $this->DatabaseTypePrefix . '_' . strtolower($this->DatabasePrefix) . '/db';
+        $this->CommonClassFolder = $this->DestinationFolder . '/common/' . $this->DatabaseFolderName();
+        $this->CommonClassDBFolder = $this->DestinationFolder . '/common/' . $this->DatabaseFolderName() . '/db';
 
-        $this->CommonClassSPFolder = $this->DestinationFolder . '/common/' . $this->DatabaseTypePrefix . '_' . strtolower($this->DatabasePrefix) . '/sp';
-        $this->CommonClassSPDBFolder = $this->DestinationFolder . '/common/' . $this->DatabaseTypePrefix . '_' . strtolower($this->DatabasePrefix) . '/sp_db';
+        $this->CommonClassSPFolder = $this->DestinationFolder . '/common/' . $this->DatabaseFolderName() . '/sp';
+        $this->CommonClassSPDBFolder = $this->DestinationFolder . '/common/' . $this->DatabaseFolderName() . '/sp_db';
 
         $this->PagesPHPUnitFolder = $this->DestinationFolder . '/phpunit';
 
@@ -161,7 +179,7 @@ class SQLCodeGen extends strongType
     {
         $template = file_get_contents(__DIR__ . '/_templates/sp.txt');
         $vars = [
-            'sp_class' => $sp_class,
+            'sp_class'  => $sp_class,
             'namespace' => self::Namespace(),
         ];
 
@@ -222,7 +240,7 @@ class SQLCodeGen extends strongType
         $class_props = [];
         $class_const = [];
 
-        $c_name = SQL_Base::TableToClass($this->DatabasePrefix, $table_name, $this->LowerCaseTables, $this->DatabaseTypePrefix);
+        $c_name = SQL_Base::TableToClass($this->DatabasePrefix, $table_name, $this->LowerCaseTables, $this->NamingDatabaseTypePrefix());
         Log::Insert($c_name);
 
         if (!method_exists($DatabaseClass, 'GetUniqueKeys')) {
@@ -306,7 +324,7 @@ class SQLCodeGen extends strongType
             }
             $seens_vars[] = $var;
 
-            $fk_class = SQL_Base::TableToClass($this->DatabasePrefix, $fk->foreign_table_name, $this->LowerCaseTables, $this->DatabaseTypePrefix);
+            $fk_class = SQL_Base::TableToClass($this->DatabasePrefix, $fk->foreign_table_name, $this->LowerCaseTables, $this->NamingDatabaseTypePrefix());
 
             $namespace = $this->Namespace();
             $db_use [] = 'use common\\' . $namespace . '\\' . $fk_class . ';';
@@ -318,7 +336,7 @@ class SQLCodeGen extends strongType
                 $isset = [];
                 $get_params = [];
                 foreach ($fk->column_name as $i => $col) {
-                    if(!is_string($col)) {
+                    if (!is_string($col)) {
                         Exception($col);
                     }
                     $isset[] = '$this->' . $col;
@@ -328,7 +346,7 @@ class SQLCodeGen extends strongType
                 $gets[] = "
             case '$var':
                 if(!isset(\$this->_$var) && " . implode(' && ', $isset) . ") {
-                    \$this->_$var = " . SQL_Base::TableToClass($this->DatabasePrefix, $fk->foreign_table_name, $this->LowerCaseTables, $this->DatabaseTypePrefix) . '::Get([' . implode(', ', $get_params) . "]);
+                    \$this->_$var = " . SQL_Base::TableToClass($this->DatabasePrefix, $fk->foreign_table_name, $this->LowerCaseTables, $this->NamingDatabaseTypePrefix()) . '::Get([' . implode(', ', $get_params) . "]);
                 }
                 return \$this->_$var;
             ";
@@ -336,7 +354,7 @@ class SQLCodeGen extends strongType
                 $gets[] = "
             case '$var':
                 if(!isset(\$this->_$var) && \$this->" . $fk->column_name . ") {
-                    \$this->_$var = " . SQL_Base::TableToClass($this->DatabasePrefix, $fk->foreign_table_name, $this->LowerCaseTables, $this->DatabaseTypePrefix) . "::Get(['" . $fk->foreign_column_name . "'=>\$this->" . $fk->column_name . "]);
+                    \$this->_$var = " . SQL_Base::TableToClass($this->DatabasePrefix, $fk->foreign_table_name, $this->LowerCaseTables, $this->NamingDatabaseTypePrefix()) . "::Get(['" . $fk->foreign_column_name . "'=>\$this->" . $fk->column_name . "]);
                 }
                 return \$this->_$var;
             ";
@@ -367,7 +385,7 @@ class SQLCodeGen extends strongType
             }
             $seens_vars[] = $var;
 
-            $fk_class = SQL_Base::TableToClass($this->DatabasePrefix, $fk->foreign_table_name, $this->LowerCaseTables, $this->DatabaseTypePrefix);
+            $fk_class = SQL_Base::TableToClass($this->DatabasePrefix, $fk->foreign_table_name, $this->LowerCaseTables, $this->NamingDatabaseTypePrefix());
             $namespace = $this->Namespace();
             $db_use [] = 'use common\\' . $namespace . '\\' . $fk_class . ';';
 
@@ -384,7 +402,7 @@ class SQLCodeGen extends strongType
                 $isset = [];
                 $get_params = [];
                 foreach ($fk->column_name as $i => $col) {
-                    if(!is_string($col)) {
+                    if (!is_string($col)) {
                         Exception($col);
                     }
                     $isset[] = '$this->' . $col;
@@ -395,13 +413,13 @@ class SQLCodeGen extends strongType
                 $gets[] = "
             case '$var':
                 if(is_null(\$this->_$var) && " . implode(' && ', $isset) . ") {
-                    \$this->_$var = " . SQL_Base::TableToClass($this->DatabasePrefix, $fk->foreign_table_name, $this->LowerCaseTables, $this->DatabaseTypePrefix) . '::GetAll([' . implode(', ', $get_params) . "]);
+                    \$this->_$var = " . SQL_Base::TableToClass($this->DatabasePrefix, $fk->foreign_table_name, $this->LowerCaseTables, $this->NamingDatabaseTypePrefix()) . '::GetAll([' . implode(', ', $get_params) . "]);
                 }
                 return \$this->_$var;
 
             case '{$var}Count':
                 if(is_null(\$this->_{$var}Count) && " . implode(' && ', $isset) . ") {
-                    \$this->_{$var}Count = " . SQL_Base::TableToClass($this->DatabasePrefix, $fk->foreign_table_name, $this->LowerCaseTables, $this->DatabaseTypePrefix) . '::GetCount([' . implode(', ', $get_params) . "]);
+                    \$this->_{$var}Count = " . SQL_Base::TableToClass($this->DatabasePrefix, $fk->foreign_table_name, $this->LowerCaseTables, $this->NamingDatabaseTypePrefix()) . '::GetCount([' . implode(', ', $get_params) . "]);
                 }
                 return \$this->_{$var}Count;
             ";
@@ -411,13 +429,13 @@ class SQLCodeGen extends strongType
                 $gets[] = "
             case '$var':
                 if(is_null(\$this->_$var) && \$this->" . $fk->column_name . ") {
-                    \$this->_$var = " . SQL_Base::TableToClass($this->DatabasePrefix, $fk->foreign_table_name, $this->LowerCaseTables, $this->DatabaseTypePrefix) . "::GetAll(['" . $fk->foreign_column_name . "'=>\$this->" . $fk->column_name . "]);
+                    \$this->_$var = " . SQL_Base::TableToClass($this->DatabasePrefix, $fk->foreign_table_name, $this->LowerCaseTables, $this->NamingDatabaseTypePrefix()) . "::GetAll(['" . $fk->foreign_column_name . "'=>\$this->" . $fk->column_name . "]);
                 }
                 return \$this->_$var;
 
             case '{$var}Count':
                 if(is_null(\$this->_{$var}Count) && \$this->" . $fk->column_name . ") {
-                    \$this->_{$var}Count = " . SQL_Base::TableToClass($this->DatabasePrefix, $fk->foreign_table_name, $this->LowerCaseTables, $this->DatabaseTypePrefix) . "::GetCount(['" . $fk->foreign_column_name . "'=>\$this->" . $fk->column_name . "]);
+                    \$this->_{$var}Count = " . SQL_Base::TableToClass($this->DatabasePrefix, $fk->foreign_table_name, $this->LowerCaseTables, $this->NamingDatabaseTypePrefix()) . "::GetCount(['" . $fk->foreign_column_name . "'=>\$this->" . $fk->column_name . "]);
                 }
                 return \$this->_{$var}Count;
             ";
@@ -455,7 +473,7 @@ class SQLCodeGen extends strongType
             'database'           => (!$this->DatabaseConstant ? '\'' . $this->Database . '\'' : $this->DatabaseConstant),
             'table_name'         => $table_name,
             'DatabasePrefix'     => (!$this->DatabaseConstant ? $this->Database : $this->DatabaseConstant),
-            'DatabaseTypePrefix' => $this->DatabaseTypePrefix,
+            'DatabaseTypePrefix' => $this->NamingDatabaseTypePrefix(),
             'LowerCaseTable'     => ($this->LowerCaseTables ? 1 : 0),
             'foreign_key_props'  => implode("\r\n\t", $foreign_key_props),
             'gets'               => sizeof($gets) ? '
@@ -574,7 +592,7 @@ class SQLCodeGen extends strongType
         foreach ($this->Tables as $table_name) {
             Log::Insert($table_name);
 
-            $this->PagesJSONFolder = $this->PagesBaseJSONFolder . '/' . $this->DatabaseTypePrefix . '_' . strtolower($this->DatabasePrefix);
+            $this->PagesJSONFolder = $this->PagesBaseJSONFolder . '/' . $this->DatabaseFolderName();
 
             if (!is_dir($this->PagesJSONFolder)) {
                 mkdir($this->PagesJSONFolder);
@@ -601,7 +619,7 @@ class SQLCodeGen extends strongType
             }
 
 
-            $this->PagesManageFolder = $this->PagesBaseManageFolder . '/' . $this->DatabaseTypePrefix . '_' . strtolower($this->DatabasePrefix);
+            $this->PagesManageFolder = $this->PagesBaseManageFolder . '/' . $this->DatabaseFolderName();
 
             if (!is_dir($this->PagesManageFolder)) {
                 mkdir($this->PagesManageFolder);
@@ -631,7 +649,7 @@ class SQLCodeGen extends strongType
     {
         $DatabaseClass = $this->DatabaseClass;
 
-        $c_name = SQL_Base::TableToClass($this->DatabasePrefix, $table_name, $this->LowerCaseTables, $this->DatabaseTypePrefix);
+        $c_name = SQL_Base::TableToClass($this->DatabasePrefix, $table_name, $this->LowerCaseTables, $this->NamingDatabaseTypePrefix());
 
         if (!method_exists($DatabaseClass, 'GetPrimaryKey')) {
             exit("$DatabaseClass::GetPrimaryKey");
@@ -746,7 +764,7 @@ class SQLCodeGen extends strongType
         foreach ($res as $fk) {
             if (!is_array($fk->column_name)) {
                 /* @var MSSQL_ForeignKey $fk */
-                $refs[(string)$fk->column_name] = SQL_Base::TableToClass($this->DatabasePrefix, $fk->foreign_table_name, $this->LowerCaseTables, $this->DatabaseTypePrefix);
+                $refs[(string)$fk->column_name] = SQL_Base::TableToClass($this->DatabasePrefix, $fk->foreign_table_name, $this->LowerCaseTables, $this->NamingDatabaseTypePrefix());
                 $namespace = $this->Namespace();
                 $db_use [] = 'use common\\' . $namespace . '\\' . $refs[(string)$fk->column_name] . ';';
             }
@@ -783,17 +801,17 @@ class SQLCodeGen extends strongType
                 if (isset($refs[$col->field])) {
                     if ($refs[$col->field] === 'ColorClass') {
                         $colors .= '
-	$(\'#' . $c_name . '_' . $col->field . '_selected\').html(\'Select One...\');
-	$(\'#' . $c_name . '_' . $col->field . '_selected\').css({\'background-color\' : \'#ffffff\'});
-				';
+    $(\'#' . $c_name . '_' . $col->field . '_selected\').html(\'Select One...\');
+    $(\'#' . $c_name . '_' . $col->field . '_selected\').css({\'background-color\' : \'#ffffff\'});
+             ';
 
                         $color_var = str_replace('_id', '', $col->field);
                         $colors_set .= '
-	if(data.serialized.' . $color_var . ') {
-		$(\'#' . $c_name . '_' . $col->field . '_selected\').html(\'\');
-		$(\'#' . $c_name . '_' . $col->field . '_selected\').css({\'background-color\' : \'#\' + data.serialized.' . $color_var . '});
-	}
-				';
+    if(data.serialized.' . $color_var . ') {
+       $(\'#' . $c_name . '_' . $col->field . '_selected\').html(\'\');
+       $(\'#' . $c_name . '_' . $col->field . '_selected\').css({\'background-color\' : \'#\' + data.serialized.' . $color_var . '});
+    }
+             ';
                     }
 
                     $form .= '<tr><td class="name" id="' . $c_name . '_' . $col->field . '_td">' . SQLCodeGen::FieldToDisplay($col->field) . '</td><td class="field"><?php echo ' . $refs[$col->field] . '::Select(null, new ElementID(\'' . $c_name . '_' . $col->field . '\', \'' . $col->field . '\')); ?></td></tr>' . "\r\n";
@@ -810,9 +828,9 @@ class SQLCodeGen extends strongType
                             $elem = $c_name . '_' . $col->field;
 
                             $form .= '<tr><td class="name" id="' . $c_name . '_' . $col->field . '_td">' . SQLCodeGen::FieldToDisplay($col->field) . '</td><td class="field">
-					<input type="checkbox" id="' . $elem . '" onclick="$(\'#' . $elem . '_hidden\').val(this.checked ? 1 : 0);" />
-					<input type="hidden" name="' . $col->field . '" id="' . $elem . '_hidden" value="0" />
-					</td></tr>' . "\r\n";
+                <input type="checkbox" id="' . $elem . '" onclick="$(\'#' . $elem . '_hidden\').val(this.checked ? 1 : 0);" />
+                <input type="hidden" name="' . $col->field . '" id="' . $elem . '_hidden" value="0" />
+                </td></tr>' . "\r\n";
                             break;
 
                         case 'datetime':
@@ -840,7 +858,7 @@ class SQLCodeGen extends strongType
             'c_name'          => $c_name,
             'primary'         => $primary[0],
             'table_nice_name' => $table_nice_name,
-            'JSONFolder'      => $this->DatabaseTypePrefix . '_' . strtolower($this->DatabasePrefix),
+            'JSONFolder'      => $this->DatabaseFolderName(),
             'form'            => $form,
             'use_models'      => implode("\r\n", $db_use),
         ];
@@ -886,7 +904,7 @@ class SQLCodeGen extends strongType
             'c_name'          => $c_name,
             'primary'         => $primary[0],
             'table_nice_name' => $table_nice_name,
-            'JSONFolder'      => $this->DatabaseTypePrefix . '_' . strtolower($this->DatabasePrefix),
+            'JSONFolder'      => $this->DatabaseFolderName(),
             'ClassName'       => Strings::CapsToSpaces(str_replace('Class', '', $c_name)),
         ];
 
@@ -919,7 +937,9 @@ class SQLCodeGen extends strongType
      */
     protected function Namespace(): string
     {
-        return strtolower($this->DatabaseConstant ? $this->DatabaseTypePrefix . '_' . $this->DatabaseConstant : $this->DatabaseTypePrefix . '_' . $this->Database);
+        $database = $this->DatabaseConstant ?: $this->Database;
+        $prefix = $this->NamingDatabaseTypePrefix();
+        return strtolower(($prefix !== '' ? $prefix . '_' : '') . $database);
     }
 
     /**
