@@ -33,11 +33,12 @@ class MySQL_CodeGen extends SQLCodeGen
         ?string $user_var,
         ?string $user_id_column,
         ?string $master_page,
-        ?int $lowercase_tables,
-        ?int $use_fk_column_name,
+        ?int    $lowercase_tables,
+        ?int    $use_fk_column_name,
         ?string $DatabaseClass = null,
-        bool $GenerateJSON = true,
-        string $DestinationFolder = '../httpdocs'
+        bool    $GenerateJSON = true,
+        string  $DestinationFolder = '../httpdocs',
+        bool    $UseDatabaseTypePrefix = true
     ): void
     {
         $this->DatabaseTypePrefix = 'my';
@@ -60,6 +61,7 @@ class MySQL_CodeGen extends SQLCodeGen
         $this->LowerCaseTables = $lowercase_tables;
         $this->UseFKColumnName = $use_fk_column_name;
         $this->GenerateJSON = $GenerateJSON;
+        $this->UseDatabaseTypePrefix = $UseDatabaseTypePrefix;
 
         $DatabaseClass::CopyInfoSchema();
 
@@ -124,13 +126,13 @@ class MySQL_CodeGen extends SQLCodeGen
 
             $template = file_get_contents(__DIR__ . '/../_templates/sp_db_mysql.txt');
             $vars = [
-                'sp_class' => $sp_class,
-                'func_params' => implode(', ', $func_params),
+                'sp_class'         => $sp_class,
+                'func_params'      => implode(', ', $func_params),
                 'DatabaseConstant' => $this->DatabaseConstant ? '\'' . $this->DatabaseConstant . '\'.' : '[' . $this->Database . ']',
-                'sql_params' => implode("\n         ,", $sql_params),
-                'params' => implode(', ', $params),
-                'SPECIFIC_NAME' => $sp->SPECIFIC_NAME,
-                'DatabaseClass' => $DatabaseClass,
+                'sql_params'       => implode("\n         ,", $sql_params),
+                'params'           => implode(', ', $params),
+                'SPECIFIC_NAME'    => $sp->SPECIFIC_NAME,
+                'DatabaseClass'    => $DatabaseClass,
 
             ];
 
