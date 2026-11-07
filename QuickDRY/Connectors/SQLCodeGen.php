@@ -240,7 +240,13 @@ class SQLCodeGen extends strongType
         $class_props = [];
         $class_const = [];
 
-        $c_name = SQL_Base::TableToClass($this->DatabasePrefix, $table_name, $this->LowerCaseTables, $this->NamingDatabaseTypePrefix());
+        $c_name = SQL_Base::TableToClass(
+            $this->DatabasePrefix,
+            $table_name,
+            $this->LowerCaseTables,
+            $this->NamingDatabaseTypePrefix(),
+            $this->UseDatabaseTypePrefix
+        );
         Log::Insert($c_name);
 
         if (!method_exists($DatabaseClass, 'GetUniqueKeys')) {
@@ -324,7 +330,13 @@ class SQLCodeGen extends strongType
             }
             $seens_vars[] = $var;
 
-            $fk_class = SQL_Base::TableToClass($this->DatabasePrefix, $fk->foreign_table_name, $this->LowerCaseTables, $this->NamingDatabaseTypePrefix());
+            $fk_class = SQL_Base::TableToClass(
+                $this->DatabasePrefix,
+                $fk->foreign_table_name,
+                $this->LowerCaseTables,
+                $this->NamingDatabaseTypePrefix(),
+                $this->UseDatabaseTypePrefix
+            );
 
             $namespace = $this->Namespace();
             $db_use [] = 'use common\\' . $namespace . '\\' . $fk_class . ';';
@@ -346,7 +358,13 @@ class SQLCodeGen extends strongType
                 $gets[] = "
             case '$var':
                 if(!isset(\$this->_$var) && " . implode(' && ', $isset) . ") {
-                    \$this->_$var = " . SQL_Base::TableToClass($this->DatabasePrefix, $fk->foreign_table_name, $this->LowerCaseTables, $this->NamingDatabaseTypePrefix()) . '::Get([' . implode(', ', $get_params) . "]);
+                    \$this->_$var = " . SQL_Base::TableToClass(
+                        $this->DatabasePrefix,
+                        $fk->foreign_table_name,
+                        $this->LowerCaseTables,
+                        $this->NamingDatabaseTypePrefix(),
+                        $this->UseDatabaseTypePrefix
+                    ) . '::Get([' . implode(', ', $get_params) . "]);
                 }
                 return \$this->_$var;
             ";
@@ -354,7 +372,13 @@ class SQLCodeGen extends strongType
                 $gets[] = "
             case '$var':
                 if(!isset(\$this->_$var) && \$this->" . $fk->column_name . ") {
-                    \$this->_$var = " . SQL_Base::TableToClass($this->DatabasePrefix, $fk->foreign_table_name, $this->LowerCaseTables, $this->NamingDatabaseTypePrefix()) . "::Get(['" . $fk->foreign_column_name . "'=>\$this->" . $fk->column_name . "]);
+                    \$this->_$var = " . SQL_Base::TableToClass(
+                        $this->DatabasePrefix,
+                        $fk->foreign_table_name,
+                        $this->LowerCaseTables,
+                        $this->NamingDatabaseTypePrefix(),
+                        $this->UseDatabaseTypePrefix
+                    ) . "::Get(['" . $fk->foreign_column_name . "'=>\$this->" . $fk->column_name . "]);
                 }
                 return \$this->_$var;
             ";
@@ -385,7 +409,13 @@ class SQLCodeGen extends strongType
             }
             $seens_vars[] = $var;
 
-            $fk_class = SQL_Base::TableToClass($this->DatabasePrefix, $fk->foreign_table_name, $this->LowerCaseTables, $this->NamingDatabaseTypePrefix());
+            $fk_class = SQL_Base::TableToClass(
+                $this->DatabasePrefix,
+                $fk->foreign_table_name,
+                $this->LowerCaseTables,
+                $this->NamingDatabaseTypePrefix(),
+                $this->UseDatabaseTypePrefix
+            );
             $namespace = $this->Namespace();
             $db_use [] = 'use common\\' . $namespace . '\\' . $fk_class . ';';
 
@@ -413,13 +443,25 @@ class SQLCodeGen extends strongType
                 $gets[] = "
             case '$var':
                 if(is_null(\$this->_$var) && " . implode(' && ', $isset) . ") {
-                    \$this->_$var = " . SQL_Base::TableToClass($this->DatabasePrefix, $fk->foreign_table_name, $this->LowerCaseTables, $this->NamingDatabaseTypePrefix()) . '::GetAll([' . implode(', ', $get_params) . "]);
+                    \$this->_$var = " . SQL_Base::TableToClass(
+                        $this->DatabasePrefix,
+                        $fk->foreign_table_name,
+                        $this->LowerCaseTables,
+                        $this->NamingDatabaseTypePrefix(),
+                        $this->UseDatabaseTypePrefix
+                    ) . '::GetAll([' . implode(', ', $get_params) . "]);
                 }
                 return \$this->_$var;
 
             case '{$var}Count':
                 if(is_null(\$this->_{$var}Count) && " . implode(' && ', $isset) . ") {
-                    \$this->_{$var}Count = " . SQL_Base::TableToClass($this->DatabasePrefix, $fk->foreign_table_name, $this->LowerCaseTables, $this->NamingDatabaseTypePrefix()) . '::GetCount([' . implode(', ', $get_params) . "]);
+                    \$this->_{$var}Count = " . SQL_Base::TableToClass(
+                        $this->DatabasePrefix,
+                        $fk->foreign_table_name,
+                        $this->LowerCaseTables,
+                        $this->NamingDatabaseTypePrefix(),
+                        $this->UseDatabaseTypePrefix
+                    ) . '::GetCount([' . implode(', ', $get_params) . "]);
                 }
                 return \$this->_{$var}Count;
             ";
@@ -429,13 +471,25 @@ class SQLCodeGen extends strongType
                 $gets[] = "
             case '$var':
                 if(is_null(\$this->_$var) && \$this->" . $fk->column_name . ") {
-                    \$this->_$var = " . SQL_Base::TableToClass($this->DatabasePrefix, $fk->foreign_table_name, $this->LowerCaseTables, $this->NamingDatabaseTypePrefix()) . "::GetAll(['" . $fk->foreign_column_name . "'=>\$this->" . $fk->column_name . "]);
+                    \$this->_$var = " . SQL_Base::TableToClass(
+                        $this->DatabasePrefix,
+                        $fk->foreign_table_name,
+                        $this->LowerCaseTables,
+                        $this->NamingDatabaseTypePrefix(),
+                        $this->UseDatabaseTypePrefix
+                    ) . "::GetAll(['" . $fk->foreign_column_name . "'=>\$this->" . $fk->column_name . "]);
                 }
                 return \$this->_$var;
 
             case '{$var}Count':
                 if(is_null(\$this->_{$var}Count) && \$this->" . $fk->column_name . ") {
-                    \$this->_{$var}Count = " . SQL_Base::TableToClass($this->DatabasePrefix, $fk->foreign_table_name, $this->LowerCaseTables, $this->NamingDatabaseTypePrefix()) . "::GetCount(['" . $fk->foreign_column_name . "'=>\$this->" . $fk->column_name . "]);
+                    \$this->_{$var}Count = " . SQL_Base::TableToClass(
+                        $this->DatabasePrefix,
+                        $fk->foreign_table_name,
+                        $this->LowerCaseTables,
+                        $this->NamingDatabaseTypePrefix(),
+                        $this->UseDatabaseTypePrefix
+                    ) . "::GetCount(['" . $fk->foreign_column_name . "'=>\$this->" . $fk->column_name . "]);
                 }
                 return \$this->_{$var}Count;
             ";

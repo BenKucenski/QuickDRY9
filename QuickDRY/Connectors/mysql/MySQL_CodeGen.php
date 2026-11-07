@@ -97,7 +97,8 @@ class MySQL_CodeGen extends SQLCodeGen
                 $this->DatabasePrefix,
                 $sp->SPECIFIC_NAME,
                 true,
-                $this->DatabaseTypePrefix . '_sp'
+                $this->DatabaseTypePrefix . '_sp',
+                $this->UseDatabaseTypePrefix
             );
 
             Log::Insert($sp_class);

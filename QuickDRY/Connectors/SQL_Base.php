@@ -61,15 +61,16 @@ class SQL_Base implements JsonSerializable
         }
 
         $database_prefix = $use_database_type_prefix ? strtolower($database_prefix) : '';
-        $t = explode('_', ($use_database_type_prefix && $database_prefix !== '' ? $database_prefix . '_' : '') . $table);
+        $t = explode('_', ($database_prefix !== '' ? $database_prefix . '_' : '') . $table);
 
         $type = '';
         foreach ($t as $w) {
             $type .= preg_replace('/[^a-z0-9]/i', '', ucfirst($w));
         }
         $type .= 'Class';
-        if (is_numeric($type[0]))
+        if (is_numeric($type[0])) {
             $type = 'i' . $type;
+        }
         return ($use_database_type_prefix && $database_type_prefix !== '' ? $database_type_prefix . '_' : '') . $type;
     }
 
