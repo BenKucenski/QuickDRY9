@@ -703,7 +703,13 @@ class SQLCodeGen extends strongType
     {
         $DatabaseClass = $this->DatabaseClass;
 
-        $c_name = SQL_Base::TableToClass($this->DatabasePrefix, $table_name, $this->LowerCaseTables, $this->NamingDatabaseTypePrefix());
+        $c_name = SQL_Base::TableToClass(
+            $this->DatabasePrefix,
+            $table_name,
+            $this->LowerCaseTables,
+            $this->NamingDatabaseTypePrefix(),
+            $this->UseDatabaseTypePrefix
+        );
 
         if (!method_exists($DatabaseClass, 'GetPrimaryKey')) {
             exit("$DatabaseClass::GetPrimaryKey");
