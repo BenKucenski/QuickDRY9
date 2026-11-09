@@ -147,7 +147,7 @@ class Web extends strongType
 
 
         $qs = $_SERVER['QUERY_STRING'] ?? null;
-        $ru = $_SERVER['REQUEST_URI'] ?? null;
+        $ru = $_SERVER['REQUEST_URI'] ?? '';
 
         $url = strtok($ru, '?');
 
