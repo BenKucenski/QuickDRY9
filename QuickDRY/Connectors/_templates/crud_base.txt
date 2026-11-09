@@ -114,7 +114,7 @@ class [[table_nice_name]]Base extends BasePage
 
         $res = self::$Item->Save();
         if ($res->error) {
-            HTTP::ExitJSON(['error' => $res['error']], HTTP::HTTP_STATUS_BAD_REQUEST);
+            HTTP::ExitJSON(['error' => $res->error], HTTP::HTTP_STATUS_BAD_REQUEST);
         }
 
         HTTP::ExitJSON(['data' => self::$Item->toArray()]);
