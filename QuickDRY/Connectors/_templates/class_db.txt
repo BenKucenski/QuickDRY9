@@ -99,7 +99,7 @@ class db_[[c_name]] extends [[DatabaseClassName]]
      */
     public function VisibleTo(): bool
     {
-        if(!CurrentUser::$id) {
+        if(!CurrentUser::ID()) {
             return false;
         }
 
@@ -117,7 +117,7 @@ class db_[[c_name]] extends [[DatabaseClassName]]
      */
     public function CanDelete(): bool
     {
-        if(!CurrentUser::$id) {
+        if(!CurrentUser::ID()) {
             return false;
         }
 

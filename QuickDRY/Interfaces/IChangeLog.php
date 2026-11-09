@@ -21,7 +21,7 @@ interface IChangeLog
     //$cl->entity_class = get_class($entity);
     //$cl->primary_key = $entity->PrimaryKey();
     //$cl->changes = json_encode($entity->_change_log);
-    //$cl->user_id = CurrentUser::$id;
+    //$cl->user_id = CurrentUser::ID();
     //$cl->is_deleted = $deleted;
     //$cl->Save();
 

@@ -27,7 +27,7 @@ class [[table_nice_name]]Base extends BasePage
      */
     private static function CheckUser(): void
     {
-        if (!CurrentUser::$id) {
+        if (!CurrentUser::ID()) {
             HTTP::ExitJSON(['error' => 'Invalid Request'], HTTP::HTTP_STATUS_UNAUTHORIZED);
         }
     }
