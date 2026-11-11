@@ -762,19 +762,47 @@ class MySQL_Core extends SQL_Base implements ISQLCore
     }
 
     /**
+     * Splits a column type as the code generator stored it (information_schema
+     * COLUMN_TYPE, e.g. "int unsigned", "int(10) unsigned", "decimal(10,2)",
+     * "enum('a','b')", "bigint unsigned zerofill") into its base type and
+     * whether it's unsigned.
+     *
+     * @param string $name
+     * @return array{0: string, 1: bool}
+     */
+    protected static function ColumnBaseType(string $name): array
+    {
+        $type = strtolower(trim((string)static::$prop_definitions[$name]['type']));
+        $base = (string)preg_replace('/[\s(].*$/s', '', $type);
+        return [$base, str_contains($type, 'unsigned')];
+    }
+
+    /**
      * @param string $name
      *
      * @return bool
      */
     protected static function IsNumeric(string $name): bool
     {
-        return match (static::$prop_definitions[$name]['type']) {
-            'tinyint(1)', 'tinyint(1) unsigned', 'int(10) unsigned', 'bigint unsigned', 'decimal(18,2)', 'int(10)', 'uinit' => true,
-            default => false,
-        };
+        [$base] = static::ColumnBaseType($name);
+        return in_array($base, [
+            'tinyint', 'smallint', 'mediumint', 'int', 'integer', 'bigint', 'year', 'bit',
+            'decimal', 'numeric', 'dec', 'fixed', 'float', 'double', 'real',
+            'unit', 'uinit', // legacy aliases kept from earlier versions
+        ], true);
     }
 
     /**
+     * Converts a value to the PHP type that matches the column's MySQL type.
+     *
+     * Covers every MySQL 8 column type. Types that have no natural PHP type
+     * (time, binary, spatial) are passed through as strings.
+     *
+     * Null handling is unchanged from earlier versions: a nullable column
+     * keeps null; a NOT NULL integer / decimal / string column coerces null
+     * to 0 / 0.0 / ''; NOT NULL date and time columns keep null, so the
+     * database reports the missing value.
+     *
      * @param string $name
      * @param $value
      *
@@ -798,81 +826,102 @@ class MySQL_Core extends SQL_Base implements ISQLCore
             return null;
         }
 
-        if (str_starts_with(static::$prop_definitions[$name]['type'], 'varchar')) {
-            return (string)$value;
-        }
+        [$base, $unsigned] = static::ColumnBaseType($name);
 
-        if (str_starts_with(static::$prop_definitions[$name]['type'], 'char')) {
-            return (string)$value;
-        }
-
-        if (str_starts_with(static::$prop_definitions[$name]['type'], 'enum(')) {
-            return (string)$value;
-        }
-        if (str_starts_with(static::$prop_definitions[$name]['type'], 'binary')) {
-            return (string)$value;
-        }
-
-        if (str_starts_with(static::$prop_definitions[$name]['type'], 'int')) {
-            return (int)Strings::Numeric($value);
-        }
-
-        if (str_starts_with(static::$prop_definitions[$name]['type'], 'tinyint')) {
-            return (int)Strings::Numeric($value);
-        }
-
-        if (str_starts_with(static::$prop_definitions[$name]['type'], 'decimal')) {
-            return (float)Strings::Numeric($value);
-        }
-
-        if (str_starts_with(static::$prop_definitions[$name]['type'], 'double')) {
-            return (float)Strings::Numeric($value);
-        }
-
-        switch (static::$prop_definitions[$name]['type']) {
-            case 'date':
-                return $value ? Dates::Datestamp($value) : null;
-
-            case 'tinyint(1)':
-
-                if (is_null($value)) {
-                    return null;
-                }
-                if (!is_numeric($value)) {
-                    $value = 0;
-                }
-                return $value ? 1 : 0;
+        switch ($base) {
+            // --- integers ---
+            case 'tinyint':
+            case 'smallint':
+            case 'mediumint':
+            case 'int':
+            case 'integer':
+            case 'year':
+                return (int)Strings::Numeric($value);
 
             case 'bigint':
-            case 'smallint unsigned':
-            case 'bigint unsigned':
-                if (is_null($value) && static::$prop_definitions[$name]['is_nullable']) {
-                    return null;
+                // bigint unsigned goes up to 18446744073709551615, past
+                // PHP_INT_MAX; an (int) cast would silently clamp it, so
+                // those values stay a digit string.
+                if ($unsigned && !is_int($value)) {
+                    $digits = trim((string)$value);
+                    if (preg_match('/^\+?\d+$/', $digits)
+                        && filter_var(ltrim($digits, '+'), FILTER_VALIDATE_INT) === false) {
+                        return ltrim(ltrim($digits, '+'), '0') ?: '0';
+                    }
                 }
                 return (int)Strings::Numeric($value);
 
-            case 'unit':
+            case 'bit':
+                if (is_int($value) || is_numeric($value)) {
+                    return (int)$value;
+                }
+                // mysqli returns BIT columns as raw bytes
+                $value = (string)$value;
+                return $value === '' ? 0 : (int)hexdec(bin2hex($value));
+
+            // --- fixed and floating point ---
+            case 'decimal':
+            case 'numeric':
+            case 'dec':
+            case 'fixed':
             case 'float':
             case 'double':
-                if (is_null($value) && static::$prop_definitions[$name]['is_nullable']) {
-                    return null;
-                }
+            case 'real':
+            case 'unit':
+            case 'uinit':
                 return (float)Strings::Numeric($value);
 
-            case 'timestamp':
-            case 'datetime':
-                return $value ? Dates::Timestamp($value) : null;
-
+            // --- strings ---
+            case 'char':
+            case 'varchar':
+            case 'tinytext':
             case 'text':
-            case 'json':
             case 'mediumtext':
             case 'longtext':
+            case 'enum':
+            case 'set':
+            case 'json':
+                return (string)$value;
+
+            // --- binary (returned as the raw byte string) ---
+            case 'binary':
+            case 'varbinary':
+            case 'tinyblob':
+            case 'blob':
+            case 'mediumblob':
             case 'longblob':
                 return (string)$value;
+
+            // --- dates and times ---
+            case 'date':
+                return $value ? Dates::Datestamp($value) : null;
+
+            case 'datetime':
+            case 'timestamp':
+                return $value ? Dates::Timestamp($value) : null;
+
+            case 'time':
+                // durations can be negative or over 24 hours ("-838:59:59"),
+                // so this stays a string instead of going through Dates
+                return is_null($value) ? null : (string)$value;
+
+            // --- spatial / vector (raw bytes) ---
+            case 'geometry':
+            case 'point':
+            case 'linestring':
+            case 'polygon':
+            case 'multipoint':
+            case 'multilinestring':
+            case 'multipolygon':
+            case 'geometrycollection':
+            case 'geomcollection':
+            case 'vector':
+                return is_null($value) ? null : (string)$value;
 
             default:
                 Exception('Unknown type ' . static::$prop_definitions[$name]['type'] . ' for value ' . $value);
         }
+        return null;
     }
 
     /**
@@ -966,7 +1015,12 @@ class MySQL_Core extends SQL_Base implements ISQLCore
                 $params[$name] = $st_value;
             } elseif (is_null($st_value) || strtolower(trim((string)$st_value)) === 'null')
                 $sql .= '`' . $name . '` = NULL,';
-            else {
+            elseif (static::ColumnBaseType($name)[0] === 'bit') {
+                // parameters are sent as quoted strings, and '1' in a BIT
+                // column means the byte 0x31, not the number 1
+                $sql .= '`' . $name . '` = CAST(:' . $name . ' AS UNSIGNED),';
+                $params[$name] = $st_value;
+            } else {
                 $sql .= '`' . $name . '` = :' . $name . ',';
                 $params[$name] = $st_value;
             }
