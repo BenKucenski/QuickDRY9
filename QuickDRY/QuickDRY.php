@@ -65,7 +65,7 @@ function Testing(...$args): void
 function Debug(...$args): void
 {
     if (!is_dir(DATA_FOLDER . '/logs')) {
-        mkdir(DATA_FOLDER . '/logs');
+        mkdir(DATA_FOLDER . '/logs', 0777, true);
     }
 
     $secrets   = DebugSecretValues();

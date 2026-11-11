@@ -13,7 +13,7 @@ class LogFile
     public function __construct()
     {
         if (!is_dir(DATA_FOLDER . '/logs')) {
-            mkdir(DATA_FOLDER . '/logs');
+            mkdir(DATA_FOLDER . '/logs', 0777, true);
         }
     }
 
@@ -47,7 +47,7 @@ class LogFile
         if ($write_to_file) {
             $f = preg_replace('/[^a-z0-9]/si', '_', $filename) . '.' . Dates::Datestamp();
             if(!is_dir(DATA_FOLDER . '/logs/' . $date)) {
-                mkdir(DATA_FOLDER . '/logs/' . $date);
+                mkdir(DATA_FOLDER . '/logs/' . $date, 0777, true);
             }
             $log_path = DATA_FOLDER . '/logs/' . $date . '/' . $f . '.log';
 

@@ -206,6 +206,16 @@ class strongType implements JsonSerializable
                 continue;
             }
 
+            // NULL stays NULL - floatval()/intval()/boolval() below would
+            // turn it into 0 / false and hide that there was no value. A
+            // property that can't hold null is left as declared.
+            if (is_null($v)) {
+                if ($rp->getType()->allowsNull()) {
+                    $this->$k = null;
+                }
+                continue;
+            }
+
             switch ($rp->getType()->getName()) {
                 case 'DateTime':
                     try {
