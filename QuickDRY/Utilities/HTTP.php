@@ -275,7 +275,7 @@ class HTTP extends strongType
         }
 
         if ($HTTP_STATUS) {
-            header('HTTP/1.1 ' . $HTTP_STATUS . ': ' . HTTPStatus::GetDescription($HTTP_STATUS));
+            http_response_code($HTTP_STATUS);
         }
         header('Content-Type: application/json;odata.metadata=minimal;odata.streaming=true;IEEE754Compatible=false;charset=utf-8');
         header('OData-Version: 4.0');
@@ -310,7 +310,7 @@ class HTTP extends strongType
 
         if ($_SERVER['HTTP_HOST'] ?? null) {
             if ($HTTP_STATUS) {
-                header('HTTP/1.1 ' . $HTTP_STATUS . ': ' . HTTPStatus::GetDescription($HTTP_STATUS));
+                http_response_code($HTTP_STATUS);
             }
             header('Content-Type: application/json');
             header('Cache-Control: no-store');
@@ -362,7 +362,7 @@ class HTTP extends strongType
         }
 
         if ($HTTP_STATUS) {
-            header('HTTP/1.1 ' . $HTTP_STATUS . ': ' . HTTPStatus::GetDescription($HTTP_STATUS));
+            http_response_code($HTTP_STATUS);
         }
 
         if ($Download) {
