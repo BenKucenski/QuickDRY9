@@ -798,10 +798,9 @@ class MySQL_Core extends SQL_Base implements ISQLCore
      * Covers every MySQL 8 column type. Types that have no natural PHP type
      * (time, binary, spatial) are passed through as strings.
      *
-     * Null handling is unchanged from earlier versions: a nullable column
-     * keeps null; a NOT NULL integer / decimal / string column coerces null
-     * to 0 / 0.0 / ''; NOT NULL date and time columns keep null, so the
-     * database reports the missing value.
+     * Null always stays null, whatever the column type and whether or not
+     * the column allows it. If a NOT NULL column is left null, the database
+     * refuses the save: the code has to set the value explicitly.
      *
      * @param string $name
      * @param $value
@@ -822,7 +821,10 @@ class MySQL_Core extends SQL_Base implements ISQLCore
             return null;
         }
 
-        if (is_null($value) && static::$prop_definitions[$name]['is_nullable']) {
+        // NULL means nobody set the value. It stays NULL - even for NOT NULL
+        // columns - so the database rejects the save instead of QuickDRY
+        // quietly storing 0 or ''.
+        if (is_null($value)) {
             return null;
         }
 
@@ -903,7 +905,7 @@ class MySQL_Core extends SQL_Base implements ISQLCore
             case 'time':
                 // durations can be negative or over 24 hours ("-838:59:59"),
                 // so this stays a string instead of going through Dates
-                return is_null($value) ? null : (string)$value;
+                return (string)$value;
 
             // --- spatial / vector (raw bytes) ---
             case 'geometry':
@@ -916,7 +918,7 @@ class MySQL_Core extends SQL_Base implements ISQLCore
             case 'geometrycollection':
             case 'geomcollection':
             case 'vector':
-                return is_null($value) ? null : (string)$value;
+                return (string)$value;
 
             default:
                 Exception('Unknown type ' . static::$prop_definitions[$name]['type'] . ' for value ' . $value);
