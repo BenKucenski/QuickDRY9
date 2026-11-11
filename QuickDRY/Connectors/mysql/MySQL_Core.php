@@ -799,7 +799,8 @@ class MySQL_Core extends SQL_Base implements ISQLCore
      * (time, binary, spatial) are passed through as strings.
      *
      * Null always stays null, whatever the column type and whether or not
-     * the column allows it. If a NOT NULL column is left null, the database
+     * the column allows it, and an empty string in a numeric column is
+     * treated as null. If a NOT NULL column is left null, the database
      * refuses the save: the code has to set the value explicitly.
      *
      * @param string $name
@@ -830,6 +831,12 @@ class MySQL_Core extends SQL_Base implements ISQLCore
 
         [$base, $unsigned] = static::ColumnBaseType($name);
 
+        // A blank form field is not a number. '' in a numeric column is
+        // treated as NULL rather than 0, so a NOT NULL column fails loudly.
+        if (static::IsNumeric($name) && is_string($value) && trim($value) === '') {
+            return null;
+        }
+
         switch ($base) {
             // --- integers ---
             case 'tinyint':
@@ -858,8 +865,7 @@ class MySQL_Core extends SQL_Base implements ISQLCore
                     return (int)$value;
                 }
                 // mysqli returns BIT columns as raw bytes
-                $value = (string)$value;
-                return $value === '' ? 0 : (int)hexdec(bin2hex($value));
+                return (int)hexdec(bin2hex((string)$value));
 
             // --- fixed and floating point ---
             case 'decimal':
