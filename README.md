@@ -13,6 +13,7 @@ This repository is a Composer package (`benkucenski/quickdry9`). The `skeleton/`
    - IIS: rename `web.config.sample.txt` to `web.config`.
    - Quick local test: `php -S localhost:8000 index.php`.
 4. Edit `env.php` to set `SESSION_NAME`, `DATA_FOLDER`, database credentials and other constants. `stubs/defines.php` lists every constant QuickDRY looks for.
+   - `DATA_FOLDER` must be the absolute path of a folder that already exists, is writable by the web server, and is outside the web root. QuickDRY never creates it or falls back to another folder; it only creates sub-folders (such as `logs/`) inside it. See `QuickDRY\Utilities\DataFolder`.
 
 `composer install` pulls QuickDRY from GitHub. It then runs `quickdry-publish`, which copies QuickDRY's `js/`, `css/`, `images/` and `controls/` into `<project>/QuickDRY/`, so existing URLs like `/QuickDRY/js/QuickDRY.js` keep working.
 
