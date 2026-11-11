@@ -5,6 +5,7 @@ declare(strict_types=1);
 // Loaded automatically by Composer (autoload.files); classes are PSR-4 autoloaded.
 
 use JetBrains\PhpStorm\NoReturn;
+use QuickDRY\Utilities\DataFolder;
 use QuickDRY\Utilities\Mailer;
 use QuickDRY\Utilities\Metrics;
 use QuickDRY\Web\BrowserOS;
@@ -64,23 +65,27 @@ function Testing(...$args): void
 #[NoReturn]
 function Debug(...$args): void
 {
-    if (!is_dir(DATA_FOLDER . '/logs')) {
-        mkdir(DATA_FOLDER . '/logs', 0777, true);
-    }
-
     $secrets   = DebugSecretValues();
     $cleanArgs = DebugRedact($args, $secrets);
     $backtrace = DebugRedact(debug_backtrace(), $secrets);
 
     $code = time() . '.' . rand(0, 1000000);
-    $file = DATA_FOLDER . '/logs/' . $code . '.txt';
     $data = json_encode([
         'server'    => DebugRedact($_SERVER ?? null, $secrets),
         'session'   => DebugRedact($_SESSION ?? null, $secrets),
         'data'      => $cleanArgs,
         'backtrace' => $backtrace,
     ], JSON_PRETTY_PRINT | JSON_PARTIAL_OUTPUT_ON_ERROR);
-    file_put_contents($file, $data);
+
+    try {
+        file_put_contents(DataFolder::File('logs/' . $code . '.txt'), $data);
+    } catch (\RuntimeException $e) {
+        // DATA_FOLDER isn't usable, so the error can't be written there.
+        // Don't lose it: send both the configuration problem and the
+        // original error to PHP's own error log.
+        error_log('QuickDRY: ' . $e->getMessage());
+        error_log('QuickDRY error ' . $code . ': ' . $data);
+    }
 
     if (defined('SEND_DEBUG_EMAILS') && SEND_DEBUG_EMAILS) {
         if(!defined('SMTP_DEBUG_EMAIL') || !SMTP_DEBUG_EMAIL) {

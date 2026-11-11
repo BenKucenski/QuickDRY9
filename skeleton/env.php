@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 const SESSION_NAME = 'QuickDRY9';
 
-const DATA_FOLDER = __DIR__;
+// REQUIRED: absolute path of an existing, writable folder OUTSIDE the web
+// root. QuickDRY writes error logs (and anything your app stores) there,
+// and refuses to run with a missing, relative or unwritable path.
+// e.g. 'C:/inetpub/myapp-data' or '/var/lib/myapp'
+const DATA_FOLDER = '';
 
 const SHOW_ERRORS = 1;
 
