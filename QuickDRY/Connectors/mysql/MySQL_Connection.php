@@ -11,6 +11,7 @@ use QuickDRY\Connectors\mssql\MSSQL_ForeignKey;
 use QuickDRY\Connectors\MySQL;
 use QuickDRY\Connectors\QueryExecuteResult;
 use QuickDRY\Interfaces\ISQLConnection;
+use QuickDRY\Utilities\DataFolder;
 use QuickDRY\Utilities\Log;
 use QuickDRY\Utilities\Metrics;
 
@@ -215,10 +216,7 @@ WHERE SCHEMA_NAME = :SCHEMA_NAME
             $aff = 0;
 
             if ($large) {
-                if (!is_dir(DATA_FOLDER . '/sql')) {
-                    mkdir(DATA_FOLDER . '/sql');
-                }
-                $fname = DATA_FOLDER . '/sql/' . time() . rand(0, 1000000) . '.mysql.txt';
+                $fname = DataFolder::File('sql/' . time() . rand(0, 1000000) . '.mysql.txt');
                 $fp = fopen($fname, 'w');
                 $tries = 0;
                 while (!$fp && $tries < 3) {

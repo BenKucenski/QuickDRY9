@@ -5,6 +5,10 @@ namespace QuickDRY\Utilities;
 
 /**
  * Class LogFile
+ *
+ * Writes to DATA_FOLDER/logs/<date>/. DATA_FOLDER must already exist (see
+ * DataFolder); a missing or unwritable one throws instead of writing
+ * somewhere else.
  */
 class LogFile
 {
@@ -12,9 +16,7 @@ class LogFile
 
     public function __construct()
     {
-        if (!is_dir(DATA_FOLDER . '/logs')) {
-            mkdir(DATA_FOLDER . '/logs');
-        }
+        DataFolder::Folder('logs');
     }
 
     /**
@@ -46,10 +48,7 @@ class LogFile
 
         if ($write_to_file) {
             $f = preg_replace('/[^a-z0-9]/si', '_', $filename) . '.' . Dates::Datestamp();
-            if(!is_dir(DATA_FOLDER . '/logs/' . $date)) {
-                mkdir(DATA_FOLDER . '/logs/' . $date);
-            }
-            $log_path = DATA_FOLDER . '/logs/' . $date . '/' . $f . '.log';
+            $log_path = DataFolder::File('logs/' . $date . '/' . $f . '.log');
 
             file_put_contents($log_path, $msg . PHP_EOL, FILE_APPEND);
         }
