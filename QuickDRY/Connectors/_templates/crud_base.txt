@@ -7,7 +7,7 @@ namespace pages\[[namespace]]\[[table_nice_name]]\base;
 use QuickDRY\Web\BasePage;
 use QuickDRY\Utilities\Dates;
 use QuickDRY\Utilities\HTTP;
-use models\ChangeLogHistory;
+use models\ChangeLog;
 use QuickDRY\Web\Request;
 use models\CurrentUser;
 
@@ -18,7 +18,8 @@ use [[namespace_c_name]];
  */
 class [[table_nice_name]]Base extends BasePage
 {
-    public static ?ChangeLogHistory $History = null;
+    /* @var ChangeLog[] $History */
+    public static ?array $History = null;
 
     public static ?[[c_name]] $Item;
 

@@ -5,6 +5,7 @@ namespace QuickDRY\Connectors;
 
 use Exception;
 use JsonSerializable;
+use models\ChangeLog;
 use models\ChangeLogHistory;
 use QuickDRY\Utilities\SimpleExcel;
 use QuickDRY\Utilities\SimpleExcel_Column;
@@ -19,7 +20,7 @@ use ReflectionProperty;
  * Class SQL_Base
  * @property bool HasChanges
  * @property array Changes
- * @property ChangeLogHistory history
+ * @property ChangeLog[] history
  */
 class SQL_Base implements JsonSerializable
 {
@@ -29,7 +30,7 @@ class SQL_Base implements JsonSerializable
     protected static string $database;
 
     protected array $_change_log = [];
-    protected ?ChangeLogHistory $_history = null;
+    protected ?array $_history = null;
     protected ?bool $_from_db = null;
 
     public ?bool $HasChanges = false;
@@ -317,9 +318,9 @@ class SQL_Base implements JsonSerializable
     }
 
     /**
-     * @return ChangeLogHistory|null
+     * @return ChangeLog[]|null
      */
-    public function History(): ?ChangeLogHistory
+    public function History(): ?array
     {
         if (is_null($this->_history)) {
             $this->_history = $this->_history();
@@ -340,7 +341,7 @@ class SQL_Base implements JsonSerializable
     }
 
     /**
-     * @return ChangeLogHistory[]|null
+     * @return ChangeLog[]|null
      */
     private function _history(): ?array
     {
