@@ -38,6 +38,54 @@ class SQL_Base implements JsonSerializable
     public static array $Log = [];
 
     /**
+     * Runs a query and groups the rows by the value of one column, so each key
+     * holds a list of the rows (or mapped values) that share it. Replaces the
+     * old Query($sql, $params, $return_type, $group_by) argument.
+     *
+     * @param string $sql
+     * @param array|null $params
+     * @param string $group_by column in the result set to group on
+     * @param bool $objects_only map each row to an instance of the calling class
+     * @param callable|null $map_function map each row with this instead
+     * @return array<string|int, array>
+     */
+    public static function QueryGroup(
+        string    $sql,
+        ?array    $params,
+        string    $group_by,
+        bool      $objects_only = false,
+        ?callable $map_function = null): array
+    {
+        if ($objects_only) {
+            $return_type = static::class;
+            $map_function = function (array $row) use ($return_type) {
+                $c = new $return_type();
+                $c->FromRow($row);
+                return $c;
+            };
+        }
+
+        // the grouping key has to come from the raw row, before any mapping
+        $res = static::Query($sql, $params, false, function (array $row) use ($group_by, $map_function) {
+            if (!array_key_exists($group_by, $row)) {
+                Exception('QuickDRY Error: ' . $group_by . ' is not a column in the query results');
+            }
+            return [$row[$group_by], $map_function ? $map_function($row) : $row];
+        });
+
+        if (isset($res['error'])) {
+            Exception($res);
+        }
+
+        $list = [];
+        foreach ($res as [$key, $value]) {
+            $list[$key][] = $value;
+        }
+
+        return $list;
+    }
+
+    /**
      * @param string $property
      * @return mixed|null
      */
