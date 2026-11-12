@@ -1457,4 +1457,37 @@ class SQL_Base implements JsonSerializable
 
     }
 
+    /**
+     * @param array $selected
+     * @param ElementID $id
+     * @param string $value
+     * @param array|null $order_by
+     * @param string $display
+     * @param array|null $where
+     * @param bool $show_none
+     * @return string
+     */
+    protected static function _SelectMulti(
+        array     $selected,
+        ElementID $id,
+        string    $value,
+        ?array     $order_by,
+        string    $display,
+        ?array     $where = null,
+        bool      $show_none = true): string
+    {
+        $type = self::class;
+
+
+        $hash = md5(serialize([$type, $order_by, $where]));
+        if (!isset(static::$_select_cache[$hash])) {
+            $items = $type::GetAll($where, $order_by);
+            static::$_select_cache[$hash] = $items;
+        } else {
+            $items = static::$_select_cache[$hash];
+        }
+
+        return self::_SelectMultiItems($items, $selected, $id, $value, $display, $show_none);
+    }
+
 }
