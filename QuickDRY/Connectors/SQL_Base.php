@@ -1389,4 +1389,71 @@ class SQL_Base implements JsonSerializable
         $select .= '</select>';
         return $select;
     }
+
+    /**
+     * @param $selected
+     * @param $id
+     * @param $value
+     * @param $order_by
+     * @param string $display
+     * @param array|null $where
+     * @return string
+     */
+    protected static function _EasySelectCheckbox($selected, $id, $value, $order_by, string $display = '', array $where = null): string
+    {
+        $type = static::class;
+
+        if (!method_exists($type, 'GetAll')) {
+            exit("$type::GetAll");
+        }
+        $items = $type::GetAll($where, [$order_by => 'asc']);
+
+        return self::_EasySelectCheckboxItems($items, $selected, $id, $value, $order_by, $display);
+    }
+
+    /**
+     * @param $items
+     * @param $selected
+     * @param $id
+     * @param $value
+     * @param $order_by
+     * @param string $display
+     * @return string
+     */
+    protected static function _EasySelectCheckboxItems($items, $selected, $id, $value, $order_by, string $display = ''): string
+    {
+        if ($display == '') {
+            $display = $order_by;
+        }
+
+        $select_remove = '<div style="min-width: 400px; height: 500px; overflow-y: auto;">';
+        $select_add = '<div style="min-width: 400px; height: 500px; overflow-y: auto;">';
+
+        if (sizeof($items) > 0) {
+            if (is_array($selected)) {
+                foreach ($items as $item) {
+                    if (in_array($item->$value, $selected)) {
+                        $select_remove .= '<input type="checkbox" name="remove_' . $id . '[]" value="' . $item->$value . '">' . $item->$display . '<br/>';
+                    } else {
+                        $select_add .= '<input type="checkbox" name="add_' . $id . '[]" value="' . $item->$value . '">' . $item->$display . '<br/>';
+                    }
+                }
+            } else {
+                foreach ($items as $item) {
+                    if ($selected != $item->$value) {
+                        $select_add .= '<input type="checkbox" name="add_' . $id . '[]" value="' . $item->$value . '">' . $item->$display . '<br/>';
+                    } else {
+                        $select_remove .= '<input type="checkbox" name="remove_' . $id . '[]" value="' . $item->$value . '">' . $item->$display . '<br/>';
+                    }
+                }
+            }
+        }
+
+        $select_remove .= '</div>';
+        $select_add .= '</div>';
+
+        return '<table><tr><td style="vertical-align: top"><b>Current Items</b><br/>(select to remove)<br/>' . $select_remove . '</td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td style="vertical-align: top"><b>Available Items</b><br/>(select to add)<br/>' . $select_add . '</td></tr></table>';
+
+    }
+
 }
