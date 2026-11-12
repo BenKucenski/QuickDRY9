@@ -175,6 +175,16 @@ interface ISQLCore
     /**
      * @param string $sql
      * @param array|null $params
+     * @param string $group_by
+     * @param bool $objects_only
+     * @param callable|null $map_function
+     * @return array
+     */
+    public static function QueryGroup(string $sql, ?array $params, string $group_by, bool $objects_only = false, ?callable $map_function = null): array;
+
+    /**
+     * @param string $sql
+     * @param array|null $params
      * @param bool $objects_only
      * @param callable|null $map_function
      * @return array
