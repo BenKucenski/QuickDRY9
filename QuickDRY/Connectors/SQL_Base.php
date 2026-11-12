@@ -1352,4 +1352,41 @@ class SQL_Base implements JsonSerializable
         return $html;
 
     }
+
+    /**
+     * @param array $items
+     * @param array|null $selected
+     * @param ElementID $id
+     * @param string $value
+     * @param string $display
+     * @param bool $show_none
+     * @return string
+     */
+    protected static function _SelectMultiItems(
+        array     $items,
+        ?array    $selected,
+        ElementID $id,
+        string    $value,
+        string    $display = '',
+        bool      $show_none = true): string
+    {
+        if (sizeof($items) == 1) {
+            $selected = [$items[0]->$value];
+        }
+
+        $select = '<select class="form-control" multiple size="' . (min(sizeof($items) + 1, 10)) . '" id="' . $id->id . '" name="' . $id->name . '[]">';
+
+        if ($show_none)
+            $select .= '<option value="null">None</option>' . "\r\n";
+
+        if (sizeof($items) > 0) {
+            foreach ($items as $item)
+                if (in_array($item->$value, $selected))
+                    $select .= '<option selected="selected" value="' . $item->$value . '">' . $item->$display . '</option>\r\n';
+                else
+                    $select .= '<option value="' . $item->$value . '">' . $item->$display . '</option>\r\n';
+        }
+        $select .= '</select>';
+        return $select;
+    }
 }
