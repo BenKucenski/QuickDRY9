@@ -20,7 +20,7 @@ class [[table_nice_name]]Base extends BasePage
 {
     public static ?ChangeLogHistory $History = null;
 
-    public static ?[[c_name]] $Item;
+    public static ?[[c_name]] $Item = null;
 
     /**
      * @return void

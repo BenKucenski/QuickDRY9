@@ -14,7 +14,7 @@ use [[namespace_c_name]];
 class [[table_nice_name]] extends BasePage
 {
     /* @var [[c_name]][] $Items  */
-    public static ?array $Items;
+    public static ?array $Items = null;
 
     public static int $Count;
     public static string $TableHeader;
