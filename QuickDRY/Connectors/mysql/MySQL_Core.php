@@ -1211,4 +1211,15 @@ WHERE
     {
         return static::$connection;
     }
+
+    /**
+     * @param $db_base
+     * @return bool
+     */
+    public static function CheckDatabase($db_base): bool
+    {
+        $sql = 'SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = :SCHEMA_NAME ';
+        $res = self::Query($sql, ['SCHEMA_NAME' => $db_base]);
+        return isset($res['data'][0]['SCHEMA_NAME']);
+    }
 }
