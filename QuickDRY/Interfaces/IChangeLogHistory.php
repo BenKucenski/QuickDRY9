@@ -23,5 +23,5 @@ interface IChangeLogHistory
      * @param SQL_Base $object
      * @return array|null
      */
-    public static function GetHistory(SQL_Base $object): ?array;
+    public static function GetHistory(SQL_Base $object): ?IChangeLogHistory;
 }
