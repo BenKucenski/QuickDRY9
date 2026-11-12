@@ -1168,4 +1168,74 @@ class SQL_Base implements JsonSerializable
     {
         return $this->ToJSONArray();
     }
+
+    /**
+     * @param        $selected
+     * @param        $id
+     * @param        $value
+     * @param        $order_by
+     * @param string $display
+     * @param array|null $where
+     *
+     * @return string
+     */
+    protected static function EasySelect(
+        $selected,
+        $id,
+        $value,
+        $order_by,
+        string $display = '',
+        ?array $where = null): string
+    {
+        $type = static::class;
+
+
+        if (!method_exists($type, 'GetAll')) {
+            exit("$type::GetAll");
+        }
+        $items = $type::GetAll($where, [$order_by => 'asc']);
+
+        return self::_EasySelectItems($items, $selected, $id, $value, $order_by, $display);
+    }
+
+    /**
+     * @param        $items
+     * @param        $selected
+     * @param        $id
+     * @param        $value
+     * @param        $order_by
+     * @param string $display
+     *
+     * @return string
+     */
+    protected static function _EasySelectItems($items, $selected, $id, $value, $order_by, string $display = ''): string
+    {
+        if ($display == '')
+            $display = $order_by;
+
+        $select_remove = '<select multiple size="10" id="remove_' . $id . '[]" name="remove_' . $id . '[]"><option value="">None</option>';
+        $select_add = '<select multiple size="10" id="add_' . $id . '[]" name="add_' . $id . '[]"><option value="">None</option>';
+
+        if (sizeof($items) > 0) {
+            if (is_array($selected)) {
+                foreach ($items as $item)
+                    if (in_array($item->$value, $selected))
+                        $select_remove .= '<option value="' . $item->$value . '">' . $item->$display . '</option>\r\n';
+                    else
+                        $select_add .= '<option value="' . $item->$value . '">' . $item->$display . '</option>\r\n';
+            } else {
+                foreach ($items as $item)
+                    if ($selected != $item->$value)
+                        $select_add .= '<option value="' . $item->$value . '">' . $item->$display . '</option>\r\n';
+                    else
+                        $select_remove .= '<option value="' . $item->$value . '">' . $item->$display . '</option>\r\n';
+            }
+        }
+
+        $select_remove .= '</select>';
+        $select_add .= '</select>';
+
+        return '<table><tr><td style="vertical-align: top"><b>Current Items</b><br/>(select to remove)<br/>' . $select_remove . '</td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td style="vertical-align: top;"><b>Available Items</b><br/>(select to add)<br/>' . $select_add . '</td></tr></table>';
+
+    }
 }
