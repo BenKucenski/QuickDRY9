@@ -1243,7 +1243,7 @@ class SQL_Base implements JsonSerializable
      * @param        $selected
      * @param        $id
      * @param        $value
-     * @param        $order_by
+     * @param string|null $order_by
      * @param string $display
      * @param string|null $where
      *
@@ -1253,9 +1253,9 @@ class SQL_Base implements JsonSerializable
         $selected,
         $id,
         $value,
-        $order_by = null,
+        ?string $order_by = null,
         string $display = '',
-        string $where = null): string
+        ?string $where = null): string
     {
         $type = static::class;
         if (!method_exists($type, 'GetAll')) {
@@ -1400,7 +1400,7 @@ class SQL_Base implements JsonSerializable
      * @param array|null $where
      * @return string
      */
-    protected static function _EasySelectCheckbox($selected, $id, $value, $order_by, string $display = '', array $where = null): string
+    protected static function _EasySelectCheckbox($selected, $id, $value, $order_by, string $display = '', ?array $where = null): string
     {
         $type = static::class;
 
