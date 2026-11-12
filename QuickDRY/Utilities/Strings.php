@@ -1126,13 +1126,13 @@ class Strings extends strongType
 
 
     /**
-     * @param string|null $num
+     * @param mixed $num
      * @param int $dec
      * @param string $null
      *
      * @return string|null
      */
-    public static function SmartNumberFormat(?string $num, int $dec = 2, string $null = '-'): ?string
+    public static function SmartNumberFormat(mixed $num, int $dec = 2, string $null = '-'): ?string
     {
         if (!is_numeric($dec)) {
             return $num;
