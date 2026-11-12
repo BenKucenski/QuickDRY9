@@ -1243,9 +1243,9 @@ class SQL_Base implements JsonSerializable
      * @param        $selected
      * @param        $id
      * @param        $value
-     * @param string|null $order_by
+     * @param array|null $order_by
      * @param string $display
-     * @param string|null $where
+     * @param array|null $where
      *
      * @return string
      */
@@ -1253,7 +1253,7 @@ class SQL_Base implements JsonSerializable
         $selected,
         $id,
         $value,
-        ?string $order_by = null,
+        ?array $order_by = null,
         string $display = '',
         ?array $where = null): string
     {
