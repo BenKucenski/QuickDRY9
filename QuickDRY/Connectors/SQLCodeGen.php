@@ -274,7 +274,7 @@ class SQLCodeGen extends strongType
             if ($col->field !== $col->field_alias) {
                 $aliases[] = $col;
             }
-            $class_props[] = ' * @property ' . SQLCodeGen::ColumnTypeToProperty(preg_replace('/\(.*?\)/si', '', $col->type), $this->DatabaseType) . ' ' . $col->field_alias;
+            $class_props[] = ' * @property ' . SQLCodeGen::ColumnTypeToProperty(preg_replace('/\(.*?\)/si', '', $col->type), $this->DatabaseType) . ' $' . $col->field_alias;
             $class_const[] = ' public const string COLUMN_' . str_replace('-', '_', strtoupper($col->field_alias)) . ' = \'' . $col->field_alias . '\';';
             $props .= "'" . $col->field . "' => ['type' => '" . str_replace('\'', '\\\'', $col->type) . "', 'length' => '" . $col->decimal_length . "', 'is_nullable' => " . ($col->null ? 'true' : 'false') . ", 'display' => '" . SQLCodeGen::FieldToDisplay($col->field) . "'],\r\n\t\t";
             if ($col->field === 'user_id') {
@@ -341,7 +341,7 @@ class SQLCodeGen extends strongType
             $namespace = $this->Namespace();
             $db_use [] = 'use common\\' . $namespace . '\\' . $fk_class . ';';
 
-            $class_props[] = ' * @property ' . $fk_class . ' ' . $var;
+            $class_props[] = ' * @property ' . $fk_class . ' $' . $var;
             $foreign_key_props[] = 'protected ?' . $fk_class . ' $_' . $var . ' = null;';
 
             if (is_array($fk->column_name)) {
@@ -420,9 +420,9 @@ class SQLCodeGen extends strongType
             $db_use [] = 'use common\\' . $namespace . '\\' . $fk_class . ';';
 
 
-            $class_props[] = ' * @property ' . $fk_class . '[] ' . $var;
-            $class_props[] = ' * @property ' . $fk_class . '[] _' . $var;
-            $class_props[] = ' * @property int ' . $var . 'Count';
+            $class_props[] = ' * @property ' . $fk_class . '[] $' . $var;
+            $class_props[] = ' * @property ' . $fk_class . '[] $_' . $var;
+            $class_props[] = ' * @property int $' . $var . 'Count';
 
 
             $foreign_key_props[] = 'protected ?array $_' . $var . ' = null;';

@@ -259,7 +259,9 @@ class SQL_Base implements JsonSerializable
 
         foreach ($matches[1] as $var) {
             $parts = explode(' ', $var);
-            $props[$parts[sizeof($parts) - 1]] = trim(str_replace($parts[sizeof($parts) - 1], '', $var));
+            $name = $parts[sizeof($parts) - 1];
+            // docblocks may write the name with or without the $
+            $props[ltrim($name, '$')] = trim(str_replace($name, '', $var));
         }
 
 
@@ -288,7 +290,7 @@ class SQL_Base implements JsonSerializable
  *
 ';
         foreach ($props as $var => $type)
-            $php .= ' * @property ' . $type . ' ' . $var . "\r\n";
+            $php .= ' * @property ' . $type . ' $' . $var . "\r\n";
 
         $php .= ' */';
         $code = preg_replace('/\<\?php\s+\/\*\*.*?\*\//si', '', $orig_code);
