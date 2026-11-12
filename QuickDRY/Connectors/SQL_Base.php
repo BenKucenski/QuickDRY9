@@ -1255,7 +1255,7 @@ class SQL_Base implements JsonSerializable
         $value,
         ?string $order_by = null,
         string $display = '',
-        ?string $where = null): string
+        ?array $where = null): string
     {
         $type = static::class;
         if (!method_exists($type, 'GetAll')) {
