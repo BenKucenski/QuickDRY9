@@ -1179,7 +1179,7 @@ class SQL_Base implements JsonSerializable
      *
      * @return string
      */
-    protected static function EasySelect(
+    protected static function _EasySelect(
         $selected,
         $id,
         $value,
@@ -1236,6 +1236,120 @@ class SQL_Base implements JsonSerializable
         $select_add .= '</select>';
 
         return '<table><tr><td style="vertical-align: top"><b>Current Items</b><br/>(select to remove)<br/>' . $select_remove . '</td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td style="vertical-align: top;"><b>Available Items</b><br/>(select to add)<br/>' . $select_add . '</td></tr></table>';
+    }
+
+    /**
+     * @param        $selected
+     * @param        $id
+     * @param        $value
+     * @param        $order_by
+     * @param string $display
+     * @param string|null $where
+     *
+     * @return string
+     */
+    protected static function _JQuerySelect(
+        $selected,
+        $id,
+        $value,
+        $order_by = null,
+        string $display = '',
+        string $where = null): string
+    {
+        $type = static::class;
+        if (!method_exists($type, 'GetAll')) {
+            exit($type . '::GetAll');
+        }
+
+        $items = $type::GetAll($where, $order_by);
+
+        return self::_JQuerySelectItems($items, $selected, $id, $value, $display);
+
+    }
+
+    /**
+     * @param        $items
+     * @param        $selected
+     * @param        $id
+     * @param        $value
+     * @param string $display
+     *
+     * @return string
+     */
+    protected static function _JQuerySelectItems($items, $selected, $id, $value, string $display = ''): string
+    {
+        // requires drag_select.js
+
+        if ($display == '')
+            $display = $value;
+
+
+        $remove = [];
+        $add = [];
+
+        if (sizeof($items) > 0) {
+            if (is_array($selected)) {
+                foreach ($items as $item)
+                    if (in_array($item->$value, $selected))
+                        $remove[$item->$value] = $item->$display;
+                    else
+                        $add[$item->$value] = $item->$display;
+            } else {
+                foreach ($items as $item)
+                    if ($selected != $item->$value)
+                        $add[$item->$value] = $item->$display;
+                    else
+                        $remove[$item->$value] = $item->$display;
+            }
+        }
+        $not_selected = [];
+        foreach ($add as $cid => $val)
+            $not_selected[] = $cid;
+
+        $html = '
+		<div class="dds_panel">
+<h2>Selected Items</h2>
+<p>Select:
+    <a href=\'#\' onclick=\'return $.dds.selectAll("list_' . $id . '_1");\'>all</a>
+    <a href=\'#\' onclick=\'return $.dds.selectNone("list_' . $id . '_1");\'>none</a>
+    <a href=\'#\' onclick=\'return $.dds.selectInvert("list_' . $id . '_1");\'>invert</a>
+</p>
+
+<ul class="dds" id="list_' . $id . '_1">
+		';
+        foreach ($remove as $item_id => $name)
+            $html .= '<li class="dds" id="list_' . $id . '_1_item_' . $item_id . '">' . $name . '</li>';
+
+        $html .= '
+</ul>
+<input type="hidden" name="modify_' . $id . '" value="1" />
+<input type="hidden" name="' . $id . '" id=\'list_' . $id . '_1_serialised\' value="' . implode(',', $selected) . '" />
+</div>
+';
+
+        $html .= '
+		<div class="dds_panel">
+<h2>Available Items</h2>
+<p>Select:
+    <a href=\'#\' onclick=\'return $.dds.selectAll("list_' . $id . '_2");\'>all</a>
+    <a href=\'#\' onclick=\'return $.dds.selectNone("list_' . $id . '_2");\'>none</a>
+    <a href=\'#\' onclick=\'return $.dds.selectInvert("list_' . $id . '_2");\'>invert</a>
+</p>
+
+<ul class="dds" id="list_' . $id . '_2">
+		';
+        foreach ($add as $item_id => $name)
+            $html .= '<li class="dds" id="list_' . $id . '_2_item_' . $item_id . '">' . $name . '</li>';
+
+        $html .= '
+</ul>
+<input type="hidden" name="' . $id . '_remaining" id=\'list_' . $id . '_2_serialised\' value="' . implode(',', $not_selected) . '" />
+</div>
+';
+
+        $html .= '<div style="clear: both;"></div>';
+
+        return $html;
 
     }
 }
