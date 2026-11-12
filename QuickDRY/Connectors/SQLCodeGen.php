@@ -824,7 +824,13 @@ class SQLCodeGen extends strongType
         foreach ($res as $fk) {
             if (!is_array($fk->column_name)) {
                 /* @var MSSQL_ForeignKey $fk */
-                $refs[(string)$fk->column_name] = SQL_Base::TableToClass($this->DatabasePrefix, $fk->foreign_table_name, $this->LowerCaseTables, $this->NamingDatabaseTypePrefix());
+                $refs[(string)$fk->column_name] = SQL_Base::TableToClass(
+                    $this->DatabasePrefix,
+                    $fk->foreign_table_name,
+                    $this->LowerCaseTables,
+                    $this->NamingDatabaseTypePrefix(),
+                    $this->UseDatabaseTypePrefix
+                );
                 $namespace = $this->Namespace();
                 $db_use [] = 'use common\\' . $namespace . '\\' . $refs[(string)$fk->column_name] . ';';
             }
