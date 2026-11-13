@@ -7,3 +7,4 @@
 /skeleton/composer.lock
 /skeleton/QuickDRY
 /skeleton/logs
+/.phpunit.cache

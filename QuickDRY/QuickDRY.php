@@ -121,12 +121,22 @@ function Debug(...$args): void
 function DebugSecretValues(): array
 {
     // Constants that are safe to show (and would just add noise if redacted)
-    $skip = ['DATA_FOLDER', 'SEND_DEBUG_EMAILS', 'CONST_OUTPUT_ERRORS', 'JS_ERROR'];
+    $skip = ['DATA_FOLDER', 'SEND_DEBUG_EMAILS', 'CONST_OUTPUT_ERRORS', 'JS_ERROR', 'QUICKDRY_PROJECT_ROOT'];
+
+    // QuickDRY's own constants (defined in this file). Their values are common
+    // words like 'POST', 'JSON' or 'Letter', so "redacting" them mangles
+    // the request data and messages instead of hiding anything.
+    $skipPrefixes = ['PDF_PAGE_', 'REQUEST_VERB_', 'REQUEST_EXPORT_', 'SELECT_'];
 
     $secrets = [];
     foreach (get_defined_constants(true)['user'] ?? [] as $name => $value) {
         if (in_array($name, $skip, true)) {
             continue;
+        }
+        foreach ($skipPrefixes as $prefix) {
+            if (str_starts_with($name, $prefix)) {
+                continue 2;
+            }
         }
         // Skip bools/ints and very short strings ("1", "on", "") —
         // redacting those would mangle half the output.
@@ -140,13 +150,18 @@ function DebugSecretValues(): array
 }
 
 /**
- * Recursively replace any secret values found in strings.
- * Objects are flattened to their public properties (same as json_encode sees).
+ * Recursively replace any secret values found in strings (and string keys).
+ *
+ * The result is plain arrays/scalars, safe to json_encode:
+ *  - Throwables keep class, message, code, file, line, trace and previous
+ *  - other objects keep ALL properties, including protected/private ones
+ *    (models keep their data in protected properties)
+ *  - closures, enums and resources are replaced with a short description
+ *  - anything nested deeper than 10 levels becomes '[max depth]'
+ *    (this also stops circular object graphs)
  */
-function DebugRedact($value, array $secrets, int $depth = 0)
+function DebugRedact(mixed $value, array $secrets, int $depth = 0): mixed
 {
-    return $value; // this needs more testing
-    
     if ($depth > 10) {
         return '[max depth]';
     }
@@ -157,26 +172,65 @@ function DebugRedact($value, array $secrets, int $depth = 0)
     }
 
     if (is_array($value)) {
-        return array_map(function ($v) use ($depth, $secrets) {
-            return DebugRedact($v, $secrets, $depth + 1);
-        }, $value);
+        $out = [];
+        foreach ($value as $k => $v) {
+            $key = is_string($k) && $secrets ? strtr($k, $secrets) : $k;
+            $out[$key] = DebugRedact($v, $secrets, $depth + 1);
+        }
+        return $out;
     }
 
     if (is_object($value)) {
         if ($value instanceof Closure) {
             return '[Closure]';
         }
-        if ($value instanceof JsonSerializable) {
-            return DebugRedact($value->jsonSerialize(), $secrets, $depth + 1);
+
+        if ($value instanceof UnitEnum) {
+            return get_class($value) . '::' . $value->name;
         }
+
+        if ($value instanceof Throwable) {
+            // Exceptions have no public properties; without this they'd come out empty
+            $previous = $value->getPrevious();
+            return [
+                '__class'  => get_class($value),
+                'message'  => DebugRedact($value->getMessage(), $secrets, $depth + 1),
+                'code'     => $value->getCode(),
+                'file'     => DebugRedact($value->getFile(), $secrets, $depth + 1),
+                'line'     => $value->getLine(),
+                'trace'    => DebugRedact($value->getTrace(), $secrets, $depth + 1),
+                'previous' => $previous ? DebugRedact($previous, $secrets, $depth + 1) : null,
+            ];
+        }
+
+        if ($value instanceof JsonSerializable) {
+            try {
+                return DebugRedact($value->jsonSerialize(), $secrets, $depth + 1);
+            } catch (Throwable) {
+                // fall through to the property dump
+            }
+        }
+
+        // (array) exposes protected ("\0*\0name") and private ("\0Class\0name")
+        // properties, unlike get_object_vars() called from outside the class.
         $out = ['__class' => get_class($value)];
-        foreach (get_object_vars($value) as $k => $v) {
-            $out[$k] = DebugRedact($v, $secrets, $depth + 1);
+        foreach ((array)$value as $k => $v) {
+            $name = is_string($k) && str_starts_with($k, "\0")
+                ? substr($k, strrpos($k, "\0") + 1)
+                : (string)$k;
+            if ($secrets) {
+                $name = strtr($name, $secrets);
+            }
+            $out[$name] = DebugRedact($v, $secrets, $depth + 1);
         }
         return $out;
     }
 
-    return $value; // int, float, bool, null, resource
+    if (is_resource($value) || gettype($value) === 'resource (closed)') {
+        return '[resource (' . get_resource_type($value) . ')]';
+    }
+
+    return $value; // int, float, bool, null
 }
 
 /**
@@ -196,7 +250,7 @@ function get_base_class(object $object): string
  */
 function base64_encode_id_safe(?string $data): ?string
 {
-    if (!$data) {
+    if ($data === null || $data === '') { // not !$data: '0' is valid input
         return null;
     }
 
@@ -212,7 +266,7 @@ function base64_encode_id_safe(?string $data): ?string
  */
 function base64_decode_id_safe(?string $safeData): ?string
 {
-    if (!$safeData) {
+    if ($safeData === null || $safeData === '') {
         return null;
     }
 
