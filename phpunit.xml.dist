@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="tests/bootstrap.php"
+         colors="true"
+         cacheDirectory=".phpunit.cache"
+         failOnWarning="true"
+         failOnRisky="true"
+         beStrictAboutOutputDuringTests="true">
+    <testsuites>
+        <testsuite name="QuickDRY">
+            <directory>tests</directory>
+        </testsuite>
+    </testsuites>
+    <php>
+        <!-- exception traces should carry arguments so redaction of them is tested -->
+        <ini name="zend.exception_ignore_args" value="0"/>
+    </php>
+    <source>
+        <include>
+            <directory>QuickDRY</directory>
+        </include>
+        <exclude>
+            <directory>QuickDRY/_sql</directory>
+            <directory>QuickDRY/css</directory>
+            <directory>QuickDRY/images</directory>
+            <directory>QuickDRY/js</directory>
+        </exclude>
+    </source>
+</phpunit>
