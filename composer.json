@@ -22,7 +22,8 @@
     "guzzlehttp/guzzle": "*",
     "larapack/dd": "*",
     "phpmailer/phpmailer": "*",
-    "phpoffice/phpspreadsheet": "*"
+    "phpoffice/phpspreadsheet": "*",
+    "messagebird/sdk": "*"
   },
   "require-dev": {
     "phpunit/phpunit": "^12.5"
@@ -30,7 +31,7 @@
   "suggest": {
     "ext-mysqli": "Required for the MySQL connector (QuickDRY\\Connectors\\mysql)",
     "ext-sqlsrv": "Required for the MSSQL connector (QuickDRY\\Connectors\\mssql)",
-    "ext-odbc": "Required for the MS Access connector (QuickDRY\\Connectors\\ACCESS)"
+    "ext-odbc": "Required for the MS Access connector (QuickDRY\\Connectors\\ACCESS)",
   },
   "autoload": {
     "psr-4": {
