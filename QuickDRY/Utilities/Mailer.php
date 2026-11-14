@@ -44,7 +44,7 @@ class Mailer extends strongType
      * @param string|null $from_email
      * @param string|null $from_name
      * @param array|null $embedded_images
-     * @return Mailer
+     * @return static
      */
     public static function Queue(
         string  $to_email,
@@ -55,9 +55,9 @@ class Mailer extends strongType
         ?string $from_email = null,
         ?string $from_name = null,
         ?array  $embedded_images = null
-    ): Mailer
+    ): static
     {
-        $t = new self();
+        $t = new static();
         $t->to_email = $to_email;
         $t->to_name = $to_name;
         $t->from_email = $from_email;
@@ -85,7 +85,7 @@ class Mailer extends strongType
      * @param string|null $from_email
      * @param string|null $from_name
      * @param array|null $embedded_images
-     * @return Mailer
+     * @return static
      */
     public static function QueueWithCC(
         string  $to_email,
@@ -97,9 +97,9 @@ class Mailer extends strongType
         ?string $from_email = null,
         ?string $from_name = null,
         ?array  $embedded_images = null
-    ): Mailer
+    ): static
     {
-        $t = self::Queue($to_email, $to_name, $subject, $message, $attachments, $from_email, $from_name, $embedded_images);
+        $t = static::Queue($to_email, $to_name, $subject, $message, $attachments, $from_email, $from_name, $embedded_images);
         $t->cc_emails = $cc_emails ?? '';
 
         return $t;
@@ -123,9 +123,7 @@ class Mailer extends strongType
         if (!defined('SMTP_FROM_EMAIL') || !defined('SMTP_FROM_NAME')) {
             throw new Exception('SMTP_FROM_EMAIL or SMTP_FROM_NAME not defined');
         }
-        if (!defined('SMTP_HOST')) {
-            throw new Exception('SMTP_HOST undefined');
-        }
+        $this->checkTransportConfig();
 
         // Local copies, so debug mode never overwrites the queued recipient or subject
         $to_list = (string)$this->to_email;
@@ -154,20 +152,8 @@ class Mailer extends strongType
 
         // Opt-in single-message mode: one send, all "to" addresses in To:, cc_emails in Cc:
         if ($cc_list !== null) {
-            $mail = $this->buildMailer($smtp_output);
-            if (!$mail) {
-                return 0;
-            }
-
-            if (array_any($to_emails, fn($to) => !$this->addRecipient($mail, 'To', $to, $to_name))) {
-                return 0;
-            }
-
-            if (array_any(array_filter(Strings::SplitEmails($cc_list)), fn($cc) => !$this->addRecipient($mail, 'Cc', $cc))) {
-                return 0;
-            }
-
-            if (!$this->attachAndSend($mail, $subject, $debug)) {
+            $cc_emails = array_values(array_filter(Strings::SplitEmails($cc_list)));
+            if (!$this->deliver($to_emails, $to_name, $cc_emails, $subject, $debug, $smtp_output)) {
                 return 0;
             }
 
@@ -178,12 +164,7 @@ class Mailer extends strongType
         // Default (legacy) mode: one separate message per address in to_email
         $delivered = [];
         foreach ($to_emails as $to) {
-            $mail = $this->buildMailer($smtp_output);
-
-            if (!$mail
-                || !$this->addRecipient($mail, 'To', $to, $to_name)
-                || !$this->attachAndSend($mail, $subject, $debug)
-            ) {
+            if (!$this->deliver([$to], $to_name, [], $subject, $debug, $smtp_output)) {
                 if ($delivered) {
                     // Some copies already went out; record which, so a retry can be handled deliberately
                     $this->log = 'Partial send, already delivered to: ' . implode(', ', $delivered)
@@ -197,6 +178,97 @@ class Mailer extends strongType
 
         $this->markSent();
         return 1;
+    }
+
+    /**
+     * Verifies the constants this transport needs. Subclasses using a different
+     * transport (e.g. MailerBird) override this.
+     *
+     * @return void
+     * @throws Exception
+     */
+    protected function checkTransportConfig(): void
+    {
+        if (!defined('SMTP_HOST')) {
+            throw new Exception('SMTP_HOST undefined');
+        }
+    }
+
+    /**
+     * Sends ONE message to the given To/Cc recipients. Send() decides how many
+     * times this is called (once per address, or once with Cc) and handles
+     * SMTP_ON, debug redirection and is_sent/sent_at. Subclasses override this
+     * to swap the transport while keeping Send()'s behavior identical.
+     *
+     * @param string[] $to_emails
+     * @param string $to_name Display name, only non-empty when there is exactly one To address
+     * @param string[] $cc_emails
+     * @param string $subject
+     * @param bool $debug
+     * @param bool $smtp_output
+     * @return bool false on failure, with the reason in $this->log
+     * @throws Exception when SMTP auth constants are incomplete
+     */
+    protected function deliver(array $to_emails, string $to_name, array $cc_emails, string $subject, bool $debug, bool $smtp_output): bool
+    {
+        $mail = $this->buildMailer($smtp_output);
+        if (!$mail) {
+            return false;
+        }
+
+        if (array_any($to_emails, fn($to) => !$this->addRecipient($mail, 'To', $to, $to_name))) {
+            return false;
+        }
+
+        if (array_any($cc_emails, fn($cc) => !$this->addRecipient($mail, 'Cc', $cc))) {
+            return false;
+        }
+
+        return $this->attachAndSend($mail, $subject, $debug);
+    }
+
+    /**
+     * Normalizes the queued attachments into a list of
+     * ['name' => string, 'path' => ?string, 'data' => ?string (raw bytes)].
+     * Exactly one of path/data is set. Returns null (reason in $this->log) on a bad entry.
+     *
+     * @return array|null
+     */
+    protected function resolveAttachments(): ?array
+    {
+        $list = [];
+        foreach ($this->getAttachments() as $name => $path) {
+            if ($name === 'report_id') {
+                // not an attachment; the email queue record handles this
+                continue;
+            }
+
+            if (is_object($path)) {
+                if (!$path instanceof IEmailAttachment) {
+                    $this->log = 'Unsupported attachment object: ' . get_class($path);
+                    return null;
+                }
+                $name = $path->FileName;
+                $path = $path->FileLocation;
+            }
+
+            $name = (string)$name;
+            $path = (string)$path;
+
+            if ($path !== '' && file_exists($path)) {
+                $list[] = ['name' => $name, 'path' => $path, 'data' => null];
+                continue;
+            }
+
+            // Not a file on disk, so it must be base64 content
+            $data = base64_decode($path, true);
+            if ($data === false || $data === '') {
+                $this->log = "Attachment '" . $name . "' is neither an existing file nor valid base64";
+                return null;
+            }
+            $list[] = ['name' => $name, 'path' => null, 'data' => $data];
+        }
+        return $list;
     }
 
     /**
@@ -327,35 +399,17 @@ class Mailer extends strongType
             return false;
         }
 
-        foreach ($this->getAttachments() as $name => $path) {
-            if ($name === 'report_id') {
-                // not an attachment; the email queue record handles this
-                continue;
-            }
+        $attachments = $this->resolveAttachments();
+        if ($attachments === null) {
+            return false;
+        }
 
-            if (is_object($path)) {
-                if (!$path instanceof IEmailAttachment) {
-                    $this->log = 'Unsupported attachment object: ' . get_class($path);
-                    return false;
-                }
-                $name = $path->FileName;
-                $path = $path->FileLocation;
-            }
-
-            $name = (string)$name;
-            $path = (string)$path;
-
+        foreach ($attachments as $attachment) {
             try {
-                if ($path !== '' && file_exists($path)) {
-                    $mail->addAttachment($path, $name);
+                if ($attachment['path'] !== null) {
+                    $mail->addAttachment($attachment['path'], $attachment['name']);
                 } else {
-                    // Not a file on disk, so it must be base64 content
-                    $data = base64_decode($path, true);
-                    if ($data === false || $data === '') {
-                        $this->log = "Attachment '" . $name . "' is neither an existing file nor valid base64";
-                        return false;
-                    }
-                    $mail->addStringAttachment($data, $name);
+                    $mail->addStringAttachment($attachment['data'], $attachment['name']);
                 }
             } catch (Exception $e) {
                 $this->log = $e->getMessage();
