@@ -117,16 +117,51 @@ function Debug(...$args): void
 /**
  * Map of [constant value => "[CONSTANT_NAME]"] for every user-defined
  * string constant worth hiding.
+ *
+ * To keep more constants readable in error logs, define DEBUG_REDACT_SKIP
+ * in your env.php as an array (or comma-separated string) of constant
+ * names. A name ending in '*' matches every constant with that prefix:
+ *
+ *   const DEBUG_REDACT_SKIP = ['SESSION_NAME', 'JS_VERSION', 'APP_*'];
+ *
+ * ['*'] skips every constant, i.e. turns redaction off.
  */
 function DebugSecretValues(): array
 {
     // Constants that are safe to show (and would just add noise if redacted)
-    $skip = ['DATA_FOLDER', 'SEND_DEBUG_EMAILS', 'CONST_OUTPUT_ERRORS', 'JS_ERROR', 'QUICKDRY_PROJECT_ROOT'];
+    $skip = [
+        'DATA_FOLDER', 'SEND_DEBUG_EMAILS', 'CONST_OUTPUT_ERRORS', 'JS_ERROR', 'QUICKDRY_PROJECT_ROOT',
+        'DEBUG_REDACT_SKIP',
+        // Defined by Web from the current request. They're already visible in
+        // $_SERVER, and redacting them turns every route, class name and file
+        // path in the log into "pages\[CURRENT_PAGE_NAME]" and "[BASE_URL]/signin".
+        'HTTP_HOST', 'BASE_URL', 'FULL_URL', 'URL_DOMAIN', 'COOKIE_DOMAIN', 'DOC_ROOT_PATH',
+        'CURRENT_PAGE', 'CURRENT_PAGE_NAME', 'SORT_BY', 'SORT_DIR',
+    ];
 
     // QuickDRY's own constants (defined in this file). Their values are common
     // words like 'POST', 'JSON' or 'Letter', so "redacting" them mangles
     // the request data and messages instead of hiding anything.
     $skipPrefixes = ['PDF_PAGE_', 'REQUEST_VERB_', 'REQUEST_EXPORT_', 'SELECT_'];
+
+    // App-defined exclusions
+    if (defined('DEBUG_REDACT_SKIP')) {
+        $extra = constant('DEBUG_REDACT_SKIP');
+        if (is_string($extra)) {
+            $extra = explode(',', $extra);
+        }
+        foreach ((array)$extra as $name) {
+            $name = trim((string)$name);
+            if ($name === '') {
+                continue;
+            }
+            if (str_ends_with($name, '*')) {
+                $skipPrefixes[] = substr($name, 0, -1);
+            } else {
+                $skip[] = $name;
+            }
+        }
+    }
 
     $secrets = [];
     foreach (get_defined_constants(true)['user'] ?? [] as $name => $value) {
