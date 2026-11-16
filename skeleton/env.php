@@ -12,6 +12,11 @@ const DATA_FOLDER = '';
 
 const SHOW_ERRORS = 1;
 
+// Error logs replace the value of every string constant with its name, so
+// passwords and keys don't leak. List constants that are safe to show here
+// ('APP_*' matches a prefix, '*' turns redaction off entirely).
+// const DEBUG_REDACT_SKIP = ['SESSION_NAME', 'JS_VERSION'];
+
 const JS_VERSION = 1;
 
 const MASTER_SECRET_KEY = null;
