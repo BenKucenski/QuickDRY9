@@ -1,17 +1,101 @@
+/**
+ * HTTP — talking to the server from the browser.
+ *
+ *   HTTP.Send(url, fields, files, options)   Promise-based (fetch): resolves with the JSON, rejects
+ *                                            with an Error whose message is the server's error and
+ *                                            whose .data is the JSON. Uploads files. Shows nothing:
+ *                                            the caller decides what to tell the user.
+ *   HTTP.Post / HTTP.Get                     The older jQuery + callbacks style, with optional wait
+ *                                            and error dialogs.
+ *
+ * The dialogs (NoticeDialog, WaitDialog) come from QuickDRY/controls (ctl_*, BS5/ or SWAL/), which a
+ * page includes only if it wants them. Without them, errors fall back to SweetAlert if the page has
+ * it, else alert(), and the wait dialog is skipped.
+ */
 class HTTP {
+    /**
+     * POST (or GET) a form and get the JSON back.
+     *
+     * A request failed if the HTTP status isn't OK, the reply isn't JSON, it says success: false,
+     * or it has an error (HTTP::ExitJSON(['error' => ...])). The Error's message is the reply's
+     * error, message or notice (whichever is text), else "HTTP <status>".
+     *
+     * @param {string} url
+     * @param {Object} [fields]    sent as text; null and undefined as ''
+     * @param {Blob|Object} [files] a Blob/File (sent as "file"), or {name: Blob | [Blob, filename]}
+     * @param {{method?: string}} [options] method: 'POST' (default) or 'GET' (fields go in the query string; no files)
+     * @returns {Promise<Object>}
+     */
+    static async Send(url, fields = {}, files = null, options = {}) {
+        const method = (options.method || 'POST').toUpperCase();
+        const init = { method, credentials: 'same-origin', headers: { Accept: 'application/json' } };
+        if (method === 'GET') {
+            const q = new URLSearchParams();
+            Object.entries(fields || {}).forEach(([k, v]) => q.append(k, v == null ? '' : v));
+            const qs = q.toString();
+            if (qs) url += (url.includes('?') ? '&' : '?') + qs;
+        } else {
+            const fd = new FormData();
+            Object.entries(fields || {}).forEach(([k, v]) => fd.append(k, v == null ? '' : v));
+            if (files instanceof Blob) {
+                fd.append('file', files, files.name || 'upload.png');
+            } else {
+                Object.entries(files || {}).forEach(([k, f]) => {
+                    if (!f) return;
+                    const [blob, name] = Array.isArray(f) ? f : [f, f.name];
+                    fd.append(k, blob, name || blob.name || k);
+                });
+            }
+            init.body = fd;
+        }
+        const res = await fetch(url, init);
+        let data;
+        try {
+            data = await res.json();
+        } catch (e) {
+            const err = new Error('Server returned HTTP ' + res.status + ' (not JSON).');
+            err.data = {};
+            err.status = res.status;
+            throw err;
+        }
+        if (!res.ok || !data || data.success === false || data.error) {
+            const said = data && [data.error, data.message, data.notice].find(v => typeof v === 'string' && v);
+            const err = new Error(said || ('HTTP ' + res.status));
+            err.data = data || {};
+            err.status = res.status;
+            throw err;
+        }
+        return data;
+    }
+
+    /** An error or notice for the user: the page's NoticeDialog if it has one, else SweetAlert, else alert(). */
+    static Notice(title, text) {
+        if (typeof NoticeDialog === 'function') return NoticeDialog(title, text);
+        if (window.Swal) return Swal.fire({ title, html: text == null ? '' : String(text), icon: title === 'Error' ? 'error' : undefined });
+        const d = document.createElement('div');
+        d.innerHTML = text == null ? '' : String(text);
+        alert(title + (d.textContent ? ': ' + d.textContent : ''));
+    }
+
+    /** The page's wait dialog, if it has one; nothing otherwise. A callback runs either way. */
+    static Wait(title, text, callback) {
+        if (typeof WaitDialog === 'function') return WaitDialog(title, text, callback);
+        if (typeof callback === 'function') callback();
+    }
+
     static DelayedReloadPage(seconds) {
         setTimeout(() => HTTP.ReloadPage(), seconds * 1000);
     }
 
     static ReloadPage(title = "Reloading Page", text = "Please Wait") {
-        WaitDialog(title, text);
+        HTTP.Wait(title, text);
         setTimeout(() => {
             location.reload(true);
         }, 1000);
     }
 
     static RedirectPage(url, title = "Reloading Page", text = "Please Wait") {
-        WaitDialog(title, text);
+        HTTP.Wait(title, text);
         location.href = url;
     }
 
@@ -29,22 +113,22 @@ class HTTP {
             dataType: "json",
             async: true,
             beforeSend: () => {
-                if (dialog) WaitDialog("Loading", "Please wait...");
+                if (dialog) HTTP.Wait("Loading", "Please wait...");
             },
             success: (data) => {
                 QuickDRY.CloseDialogIfOpen('wait_dialog');
-                if (modalClass) {
+                if (modalClass && window[modalClass]) {
                     window[modalClass]._active = true;
                 }
 
-                if (data.error) {
+                if (data && data.error) {
                     if (typeof error_callback === "function") {
                         error_callback(data);
                     } else {
-                        NoticeDialog('Error', data.error);
+                        HTTP.Notice('Error', data.error);
                     }
                 } else {
-                    if (data.success && $.n) {
+                    if (data && data.success && $.n) {
                         $.n.success(data.success);
                     }
                     if (dialog) {
@@ -57,19 +141,20 @@ class HTTP {
             },
             error: (xhr) => {
                 QuickDRY.CloseDialogIfOpen('wait_dialog');
-                if (modalClass) {
+                if (modalClass && window[modalClass]) {
                     window[modalClass]._active = true;
                 }
                 let json;
                 try {
                     json = JSON.parse(xhr.responseText);
                 } catch {
-                    json = { error: "An unknown error occurred." };
+                    json = null;
                 }
+                if (!json || !json.error) json = Object.assign({}, json, { error: "An unknown error occurred (HTTP " + xhr.status + ")." });
                 if (typeof error_callback === "function") {
                     error_callback(json);
                 } else {
-                    NoticeDialog('Error', json.error);
+                    HTTP.Notice('Error', json.error);
                 }
             }
         });

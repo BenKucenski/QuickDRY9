@@ -11,13 +11,13 @@ let QuickDRY = {
             data: vars,
             success: function (data) {
                 QuickDRY.CloseDialogIfOpen('wait_dialog');
-                if (data.error) {
-                    NoticeDialog('Error', data.error);
-                    if (modalClass) {
-                        eval(modalClass + '._active = true;');
+                if (data && data.error) {
+                    HTTP.Notice('Error', data.error);
+                    if (modalClass && window[modalClass]) {
+                        window[modalClass]._active = true;
                     }
                 } else {
-                    if (data.success && $.n) {
+                    if (data && data.success && $.n) {
                         $.n.success(data.success);
                     }
                     if (dialog) {
@@ -31,11 +31,9 @@ let QuickDRY = {
             error: function (XMLHttpRequest) {
                 let data = XMLHttpRequest.responseJSON;
                 QuickDRY.CloseDialogIfOpen('wait_dialog');
-                if (data.error) {
-                    NoticeDialog('Error', data.error);
-                    if (modalClass) {
-                        eval(modalClass + '._active = true;');
-                    }
+                HTTP.Notice('Error', (data && data.error) || ('An unknown error occurred (HTTP ' + XMLHttpRequest.status + ').'));
+                if (modalClass && window[modalClass]) {
+                    window[modalClass]._active = true;
                 }
             }
         });
@@ -43,7 +41,7 @@ let QuickDRY = {
     },
     Create: function (type, vars, callback, dialog) {
         if (!QuickDRY.DialogIsOpen('wait_dialog')) {
-            WaitDialog('Please Wait', 'Saving...');
+            HTTP.Wait('Please Wait', 'Saving...');
         }
 
         vars.verb = 'PUT';
@@ -57,7 +55,7 @@ let QuickDRY = {
 
     Update: function (type, vars, callback, dialog) {
         if (!QuickDRY.DialogIsOpen('wait_dialog')) {
-            WaitDialog('Please Wait', 'Saving...');
+            HTTP.Wait('Please Wait', 'Saving...');
         }
 
         vars.verb = 'POST';
@@ -99,7 +97,7 @@ let QuickDRY = {
             return false;
         }
 
-        WaitDialogControl.Load('Please Wait', 'Deleting...', function () {
+        HTTP.Wait('Please Wait', 'Deleting...', function () {
             vars.verb = 'DELETE';
             HTTP.Post('/json/' + type, vars, callback, null, dialog);
         });
@@ -266,7 +264,7 @@ let QuickDRY = {
     LoadHTML: function (url, vars, elem_id, callback) {
         $.post(url, vars, function (data) {
             if (data.error !== undefined)
-                NoticeDialog('Error', data.error);
+                HTTP.Notice('Error', data.error);
             else {
                 $('#' + elem_id).html(data.html);
                 if (typeof (callback) === "function") {
@@ -281,7 +279,7 @@ let QuickDRY = {
     ReplaceHTML: function (url, vars, elem_id, callback) {
         $.post(url, vars, function (data) {
             if (data.error !== undefined)
-                NoticeDialog('Error', data.error);
+                HTTP.Notice('Error', data.error);
             else {
                 $('#' + elem_id).replaceWith(data.html);
                 if (typeof (callback) === "function") {
@@ -294,7 +292,7 @@ let QuickDRY = {
     AppendHTML: function (url, vars, elem_id, callback) {
         $.post(url, vars, function (data) {
             if (data.error !== undefined)
-                NoticeDialog('Error', data.error);
+                HTTP.Notice('Error', data.error);
             else {
                 $('#' + elem_id).append(data.html);
                 if (typeof (callback) === "function") {
@@ -307,7 +305,7 @@ let QuickDRY = {
     AddTableRow: function (url, vars, elem_id, callback) {
         $.post(url, vars, function (data) {
             if (data.error !== undefined)
-                NoticeDialog('Error', data.error);
+                HTTP.Notice('Error', data.error);
             else {
                 $('#' + elem_id + ' > tbody:last').append(data.html);
                 if (typeof (callback) === "function") {

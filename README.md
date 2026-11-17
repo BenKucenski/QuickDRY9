@@ -52,6 +52,26 @@ Then, in the existing project:
 | `skeleton/` | Starter application (not in the package) |
 | `stubs/defines.php` | IDE stub of configurable constants (not loaded) |
 
+## Talking to the server from the browser
+
+`QuickDRY/js/QuickDRY.HTTP.js` (published to `/QuickDRY/js/`) has two styles:
+
+- `HTTP.Send(url, fields, files, options)` returns a Promise (it uses `fetch`) and can upload files. It resolves with the reply's JSON. It rejects with an `Error` when the HTTP status isn't OK, the reply isn't JSON, it says `success: false`, or it has an `error` key (what `HTTP::ExitJSON(['error' => ...])` sends). The error's message is the reply's `error`, `message` or `notice`, and `err.data` / `err.status` hold the reply and the status. It shows nothing itself.
+
+  ```js
+  try {
+      const d = await HTTP.Send('/editor/thing', { action: 'save', name }, { image: [blob, 'pic.png'] });
+  } catch (err) {
+      HTTP.Notice('Error', err.message);
+  }
+  ```
+
+  `files` is a Blob/File (sent as `file`) or `{ field: Blob | [Blob, filename] }`. `options.method` may be `'GET'` (fields go in the query string).
+
+- `HTTP.Post(url, vars, callback, error_callback, dialog)` / `HTTP.Get(...)` is the older jQuery and callbacks style. It shows a wait dialog while it works if `dialog` is given, and shows errors itself unless `error_callback` handles them.
+
+`HTTP.Notice(title, html)` and `HTTP.Wait(title, text, callback)` use the page's dialog controls from `QuickDRY/controls/` (`ctl_*`, `BS5/` or `SWAL/`) when the page includes them. Without them, notices fall back to SweetAlert if the page loads it, else `alert()`, and the wait dialog is skipped. `QuickDRY.js` uses the same fallbacks, so a page without the dialog controls no longer throws on its first error.
+
 ## Application conventions
 
 - Pages live in `pages/<path>/<name>.php` (class `pages\<path>\<name>` extending `QuickDRY\Web\BasePage`), with an optional `<name>.html.php` view.
