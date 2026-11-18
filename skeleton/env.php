@@ -12,6 +12,12 @@ const DATA_FOLDER = '';
 
 const SHOW_ERRORS = 1;
 
+// REQUIRED: QuickDRY reads this whenever it fills a strongType object
+// (query results, API replies). true stops with an error that lists any
+// fields the class doesn't declare, ready to paste in as properties.
+// false ignores unknown fields.
+const CONST_HALT_ON_MISSING_PARAMS = true;
+
 // Error logs replace the value of every string constant with its name, so
 // passwords and keys don't leak. List constants that are safe to show here
 // ('APP_*' matches a prefix, '*' turns redaction off entirely).
