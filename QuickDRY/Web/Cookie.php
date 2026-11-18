@@ -15,15 +15,14 @@ class Cookie extends strongType
     /**
      * @param string $name
      * @param string $value
-     * @param float $expires
+     * @param float $expires hours until it expires; 0 for a session cookie
      */
     public static function Set(string $name, string $value, float $expires = 24): void
     {
-        if ($expires) {
-            setcookie($name, $value, time() + $expires * 60 * 60, '/', HTTP_HOST);
-        } else {
-            setcookie($name, $value, 0, '/', HTTP_HOST);
-        }
+        // setcookie() needs an int timestamp; hours can be fractional
+        $expires_at = $expires ? time() + (int)round($expires * 60 * 60) : 0;
+
+        setcookie($name, $value, $expires_at, '/', HTTP_HOST);
         Cookie::$_VALS[$name] = $value;
     }
 
@@ -58,9 +57,8 @@ class Cookie extends strongType
         if (!isset($_COOKIE[$name]))
             return;
 
-        // http://petersnotes.blogspot.com/2011/01/iphone-cookie-hell.html
-        setcookie($name, ''); // for iPhone
-        setcookie($name, '', time() - 1, HTTP_HOST);
+        // same path and domain as Set(), or the browser keeps the cookie
+        setcookie($name, '', time() - 3600, '/', HTTP_HOST);
         unset(Cookie::$_VALS[$name]);
         unset($_COOKIE[$name]);
     }
