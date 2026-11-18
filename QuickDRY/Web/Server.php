@@ -28,35 +28,137 @@ class Server
     }
 
     /**
+     * Proxies whose forwarding headers are believed (IPs or CIDR ranges, IPv4 or IPv6).
+     *
+     * Only when the direct peer (REMOTE_ADDR) is one of these are CF-Connecting-IP /
+     * X-Forwarded-For read; otherwise anyone could send those headers and claim any
+     * address. Defaults to loopback, which covers a reverse proxy or tunnel on the same
+     * machine (e.g. cloudflared, IIS ARR). Add a load balancer's range here if the app
+     * sits behind one on another host.
+     *
+     * @var string[]
+     */
+    public static array $TrustedProxies = ['127.0.0.0/8', '::1/128'];
+
+    /**
+     * The client's IP address, normalized (IPv6 lowercase and compressed,
+     * IPv4-mapped IPv6 like ::ffff:1.2.3.4 returned as 1.2.3.4).
+     *
+     * When the request came through a trusted proxy (see $TrustedProxies):
+     *   1. CF-Connecting-IP, if valid (Cloudflare sets it to the visitor's address)
+     *   2. X-Forwarded-For, read right to left, skipping trusted proxies; the first
+     *      address that isn't one is the client. (The left end is whatever the client
+     *      sent and can't be trusted.)
+     * Otherwise, or if neither header helps, REMOTE_ADDR.
+     *
      * @return string|null
      */
     public static function REMOTE_ADDR(): ?string
     {
-        $ip = null;
+        $remote = self::NormalizeIP($_SERVER['REMOTE_ADDR'] ?? null);
+        if ($remote === null || !self::IsTrustedProxy($remote)) {
+            return $remote;
+        }
 
-        // Check HTTP_X_FORWARDED_FOR
+        $cf = self::NormalizeIP($_SERVER['HTTP_CF_CONNECTING_IP'] ?? null);
+        if ($cf !== null) {
+            return $cf;
+        }
+
         if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-            // X-Forwarded-For can be a comma-separated list: client, proxy1, proxy2
-            $forwardedIps = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
-
-            // Take the first valid IP in the list
-            foreach ($forwardedIps as $forwardedIp) {
-                $forwardedIp = trim($forwardedIp);
-                if (filter_var($forwardedIp, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 | FILTER_FLAG_IPV6)) {
-                    $ip = $forwardedIp;
-                    break;
+            $chain = array_reverse(explode(',', (string)$_SERVER['HTTP_X_FORWARDED_FOR']));
+            foreach ($chain as $hop) {
+                $ip = self::NormalizeIP($hop);
+                if ($ip === null) {
+                    break; // garbage in the chain; don't trust anything to the left of it
+                }
+                if (!self::IsTrustedProxy($ip)) {
+                    return $ip;
                 }
             }
         }
 
-        // Fallback to REMOTE_ADDR
-        if (!$ip && !empty($_SERVER['REMOTE_ADDR'])) {
-            if (filter_var($_SERVER['REMOTE_ADDR'], FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 | FILTER_FLAG_IPV6)) {
-                $ip = $_SERVER['REMOTE_ADDR'];
-            }
+        return $remote;
+    }
+
+    /**
+     * Validates and normalizes an IP address. Accepts "[::1]", "[::1]:443" and
+     * "1.2.3.4:80" forms some proxies send. Returns null if it isn't an IP.
+     *
+     * @param string|null $ip
+     * @return string|null
+     */
+    public static function NormalizeIP(?string $ip): ?string
+    {
+        $ip = trim((string)$ip);
+        if ($ip === '') {
+            return null;
         }
 
-        return $ip;
+        if (preg_match('/^\[([^\]]+)\](?::\d+)?$/', $ip, $m)) {
+            $ip = $m[1];                                  // [v6] or [v6]:port
+        } elseif (preg_match('/^(\d{1,3}(?:\.\d{1,3}){3}):\d+$/', $ip, $m)) {
+            $ip = $m[1];                                  // v4:port
+        }
+
+        $ip = preg_replace('/%.*$/', '', $ip);            // zone id, e.g. fe80::1%eth0
+
+        $bin = @inet_pton($ip);
+        if ($bin === false || !filter_var($ip, FILTER_VALIDATE_IP)) {
+            return null;
+        }
+
+        if (strlen($bin) === 16 && str_starts_with($bin, str_repeat("\0", 10) . "\xff\xff")) {
+            return inet_ntop(substr($bin, 12));           // ::ffff:a.b.c.d -> a.b.c.d
+        }
+
+        return inet_ntop($bin);
+    }
+
+    /**
+     * @param string $ip a normalized IP
+     * @return bool
+     */
+    public static function IsTrustedProxy(string $ip): bool
+    {
+        foreach (self::$TrustedProxies as $range) {
+            if (self::IPInRange($ip, $range)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * @param string $ip
+     * @param string $range an IP or CIDR, e.g. 10.0.0.0/8 or 2001:db8::/32
+     * @return bool
+     */
+    public static function IPInRange(string $ip, string $range): bool
+    {
+        [$net, $bits] = array_pad(explode('/', trim($range), 2), 2, null);
+        $ipBin = @inet_pton($ip);
+        $netBin = @inet_pton((string)$net);
+        if ($ipBin === false || $netBin === false || strlen($ipBin) !== strlen($netBin)) {
+            return false;
+        }
+
+        $maxBits = strlen($ipBin) * 8;
+        $bits = $bits === null ? $maxBits : (int)$bits;
+        if ($bits < 0 || $bits > $maxBits) {
+            return false;
+        }
+
+        $bytes = intdiv($bits, 8);
+        if (substr($ipBin, 0, $bytes) !== substr($netBin, 0, $bytes)) {
+            return false;
+        }
+        $rem = $bits % 8;
+        if ($rem === 0) {
+            return true;
+        }
+        $mask = (0xFF << (8 - $rem)) & 0xFF;
+        return (ord($ipBin[$bytes]) & $mask) === (ord($netBin[$bytes]) & $mask);
     }
 
     /**
