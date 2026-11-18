@@ -24,6 +24,29 @@ class Curl
         'verify' => false,
     ];
 
+    /**
+     * Seconds a whole request may take (connect + send + receive) before it
+     * is abandoned. Null means no limit, which is Guzzle's default.
+     * Set it once, e.g. in env.php or at the top of a task script:
+     *   Curl::$timeout = 30;
+     */
+    public static ?float $timeout = null;
+
+    /**
+     * Seconds to wait for the connection to open. Null means no limit.
+     */
+    public static ?float $connect_timeout = null;
+
+    /**
+     * What happens when a request fails outright (timeout, DNS, refused
+     * connection). An HTTP error status is not a failure: it comes back in
+     * StatusCode as before.
+     *   false (default): log it with Exception(), which ends the script.
+     *   true: throw the GuzzleException, so the caller can catch it,
+     *         retry or skip, and keep going.
+     */
+    public static bool $throw_exceptions = false;
+
     public ?string $Body = null;
     public ?array $HeaderHash = null;
     public ?string $HeaderRaw = null;
@@ -33,6 +56,35 @@ class Curl
     public ?string $URL = null;
     public ?array $Params = null;
     public ?array $SentHeader = null;
+
+    /**
+     * @return Client
+     */
+    private static function Client(): Client
+    {
+        $options = self::$options;
+        if (!is_null(self::$timeout)) {
+            $options[RequestOptions::TIMEOUT] = self::$timeout;
+        }
+        if (!is_null(self::$connect_timeout)) {
+            $options[RequestOptions::CONNECT_TIMEOUT] = self::$connect_timeout;
+        }
+        return new Client($options);
+    }
+
+    /**
+     * @param GuzzleException $e
+     * @return never
+     * @throws GuzzleException
+     */
+    private static function Failed(GuzzleException $e): never
+    {
+        if (self::$throw_exceptions) {
+            throw $e;
+        }
+        Exception($e->getMessage());
+        exit(1); // Exception() exits; this keeps the never return type honest
+    }
 
     /**
      * @param ResponseInterface $response
@@ -84,7 +136,7 @@ class Curl
         try {
             $start = microtime(true);
 
-            $client = new Client(self::$options);
+            $client = self::Client();
             $response = $client->post($path, [
                 RequestOptions::FORM_PARAMS => $params,
                 'headers'                   => $additional_headers,
@@ -95,7 +147,7 @@ class Curl
 
             return self::getResFromGuzzle($response, $path, $params, $additional_headers);
         } catch (GuzzleException $e) {
-            Exception($e->getMessage());
+            self::Failed($e);
         }
     }
 
@@ -114,7 +166,7 @@ class Curl
 
         try {
             $start = microtime(true);
-            $client = new Client(self::$options);
+            $client = self::Client();
             $response = $client->post($path, [
                 RequestOptions::JSON => $params,
                 'headers'            => $additional_headers,
@@ -125,7 +177,7 @@ class Curl
 
             return self::getResFromGuzzle($response, $path, $params, $additional_headers);
         } catch (GuzzleException $e) {
-            Exception($e->getMessage());
+            self::Failed($e);
         }
     }
 
@@ -144,7 +196,7 @@ class Curl
 
         try {
             $start = microtime(true);
-            $client = new Client(self::$options);
+            $client = self::Client();
             $response = $client->patch($path, [
                 RequestOptions::JSON => $params,
                 'headers'            => $additional_headers,
@@ -155,7 +207,7 @@ class Curl
 
             return self::getResFromGuzzle($response, $path, $params, $additional_headers);
         } catch (GuzzleException $e) {
-            Exception($e->getMessage());
+            self::Failed($e);
         }
     }
 
@@ -175,7 +227,7 @@ class Curl
 
         try {
             $start = microtime(true);
-            $client = new Client(self::$options);
+            $client = self::Client();
             $response = $client->post($path, [
                 'headers'     => $additional_headers,
                 'body'        => $xml,
@@ -186,7 +238,7 @@ class Curl
 
             return self::getResFromGuzzle($response, $path, ['xml' => $xml], $additional_headers);
         } catch (GuzzleException $e) {
-            Exception($e->getMessage());
+            self::Failed($e);
         }
     }
 
@@ -203,7 +255,7 @@ class Curl
     ): Curl
     {
         try {
-            $client = new Client(self::$options);
+            $client = self::Client();
             $response = $client->post($path, [
                 RequestOptions::FORM_PARAMS => $params,
                 'headers'                   => $additional_headers,
@@ -212,7 +264,7 @@ class Curl
 
             return self::getResFromGuzzle($response, $path, $params, $additional_headers);
         } catch (GuzzleException $e) {
-            Exception($e->getMessage());
+            self::Failed($e);
         }
     }
 
@@ -232,7 +284,7 @@ class Curl
         try {
             $start = microtime(true);
 
-            $client = new Client(self::$options);
+            $client = self::Client();
             $response = $client->get($path, [
                 'query'       => $params,
                 'headers'     => $additional_headers,
@@ -242,7 +294,7 @@ class Curl
 
             return self::getResFromGuzzle($response, $path, $params, $additional_headers);
         } catch (GuzzleException $e) {
-            Exception($e->getMessage());
+            self::Failed($e);
         }
     }
 
@@ -260,7 +312,7 @@ class Curl
     {
         try {
             $start = microtime(true);
-            $client = new Client(self::$options);
+            $client = self::Client();
             $response = $client->put($path, [
                 RequestOptions::JSON => $params,
                 'headers'            => $additional_headers,
@@ -271,7 +323,7 @@ class Curl
 
             return self::getResFromGuzzle($response, $path, $params, $additional_headers);
         } catch (GuzzleException $e) {
-            Exception($e->getMessage());
+            self::Failed($e);
         }
     }
 
