@@ -3,9 +3,10 @@ declare(strict_types=1);
 
 namespace QuickDRY\Utilities;
 
-use Exception;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use RuntimeException;
+use Throwable;
 
 /**
  * Class SimpleExcel_Reader
@@ -18,6 +19,7 @@ class SimpleExcel_Reader extends strongType
      * @param bool $debug
      * @param int|null $row_limit
      * @return array
+     * @throws RuntimeException when the file can't be loaded or read (the original error is getPrevious())
      */
     public static function FromFilename(string $file, bool $process_cells = true, bool $debug = false, ?int $row_limit = null): array
     {
@@ -32,12 +34,11 @@ class SimpleExcel_Reader extends strongType
             if ($debug) {
                 Log::Insert('Done Loading');
             }
-
-
-            return self::ToReport($spreadsheet, $process_cells, $debug, $row_limit);
-        } catch (Exception $e) {
-            die('Error loading file "' . $file . '": ' . $e->getMessage());
+        } catch (Throwable $e) {
+            throw new RuntimeException('Error loading file "' . $file . '": ' . $e->getMessage(), 0, $e);
         }
+
+        return self::ToReport($spreadsheet, $process_cells, $debug, $row_limit);
     }
 
     /**
@@ -46,6 +47,7 @@ class SimpleExcel_Reader extends strongType
      * @param bool $debug
      * @param int|null $row_limit
      * @return array
+     * @throws RuntimeException when a sheet can't be read (the original error is getPrevious())
      */
     public static function ToReport(Spreadsheet $spreadsheet, bool $process_cells = true, bool $debug = false, ?int $row_limit = null): array
     {
@@ -103,8 +105,8 @@ class SimpleExcel_Reader extends strongType
                     Log::Insert('Done Reading Data');
                 }
 
-            } catch (Exception $ex) {
-                Exception($ex->getMessage());
+            } catch (Throwable $ex) {
+                throw new RuntimeException('Error reading sheet "' . $sheetNames[$sheet] . '": ' . $ex->getMessage(), 0, $ex);
             }
         }
         return $report;
