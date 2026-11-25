@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace QuickDRY\Connectors\mssql;
 
 use DateTime;
+use DateTimeInterface;
 use Exception;
 use JetBrains\PhpStorm\ArrayShape;
 use models\ChangeLog;
@@ -90,6 +91,7 @@ class MSSQL_Core extends SQL_Base implements ISQLCore
     /**
      * @param bool $return_query
      * @return SQL_Query|QueryExecuteResult|null
+     * @throws Exception
      */
     public function Insert(bool $return_query = false): SQL_Query|QueryExecuteResult|null
     {
@@ -99,6 +101,7 @@ class MSSQL_Core extends SQL_Base implements ISQLCore
     /**
      * @param bool $return_query
      * @return SQL_Query|QueryExecuteResult|null
+     * @throws Exception
      */
     public function Update(bool $return_query = false): SQL_Query|QueryExecuteResult|null
     {
@@ -970,23 +973,194 @@ OFFSET ' . ($per_page * $page) . ' ROWS FETCH NEXT ' . $per_page . ' ROWS ONLY
     }
 
     /**
-     * @param $name
+     * Base SQL Server type of a column, lower case and without any length,
+     * e.g. "decimal", "nvarchar", "datetime2". The code generator stores
+     * INFORMATION_SCHEMA.COLUMNS.DATA_TYPE, which never has a length, but
+     * hand-written classes sometimes say "decimal(18,2)" or "varchar(max)".
+     *
+     * @param string $name
+     * @return string
+     */
+    protected static function ColumnBaseType(string $name): string
+    {
+        $type = strtolower(trim((string)static::$prop_definitions[$name]['type']));
+        return (string)preg_replace('/[\s(].*$/s', '', $type);
+    }
+
+    /**
+     * Scale (digits after the decimal point) of a decimal / numeric column,
+     * from the 'length' the code generator stored ("precision,scale"), or
+     * from the type itself when it was written as "decimal(18,2)".
+     *
+     * Classes generated before the code generator was fixed stored
+     * "precision,radix" here, so their scale reads as 10. That only adds
+     * trailing zeros; SQL Server still rounds to the real scale on save.
+     *
+     * @param string $name
+     * @return int|null null when the scale isn't known
+     */
+    protected static function DecimalScale(string $name): ?int
+    {
+        $type = (string)static::$prop_definitions[$name]['type'];
+        if (preg_match('/\(\s*\d+\s*,\s*(\d+)\s*\)/', $type, $m)) {
+            return (int)$m[1];
+        }
+        $length = (string)(static::$prop_definitions[$name]['length'] ?? '');
+        if (preg_match('/^\s*\d+\s*,\s*(\d+)\s*$/', $length, $m)) {
+            return (int)$m[1];
+        }
+        return null;
+    }
+
+    /**
+     * @param string $name
      *
      * @return bool
      */
     protected static function IsNumeric($name): bool
     {
-        return match (static::$prop_definitions[$name]['type']) {
-            'tinyint(1)', 'numeric', 'tinyint(1) unsigned', 'int(10) unsigned', 'bigint unsigned', 'decimal(18,2)', 'int(10)' => true,
-            default => false,
+        return in_array(static::ColumnBaseType($name), [
+            'bit', 'tinyint', 'smallint', 'int', 'bigint',
+            'decimal', 'numeric', 'money', 'smallmoney',
+            'float', 'real',
+        ], true);
+    }
+
+    /**
+     * Rounds a plain decimal string ("-123.4567") to $scale places, half
+     * away from zero like SQL Server does, using string math so large
+     * decimal values don't lose precision through a float.
+     *
+     * @param string $number
+     * @param int $scale
+     * @return string
+     */
+    protected static function RoundDecimalString(string $number, int $scale): string
+    {
+        $negative = str_starts_with($number, '-');
+        $number = ltrim($number, '+-');
+        [$int, $frac] = array_pad(explode('.', $number, 2), 2, '');
+        $int = ltrim($int, '0');
+        if ($int === '') {
+            $int = '0';
+        }
+
+        if (strlen($frac) > $scale) {
+            $round_up = $frac[$scale] >= '5';
+            $frac = substr($frac, 0, $scale);
+            if ($round_up) {
+                $digits = $int . $frac;
+                $i = strlen($digits) - 1;
+                while ($i >= 0 && $digits[$i] === '9') {
+                    $digits[$i] = '0';
+                    $i--;
+                }
+                if ($i < 0) {
+                    $digits = '1' . $digits;
+                } else {
+                    $digits[$i] = chr(ord($digits[$i]) + 1);
+                }
+                $int = $scale ? substr($digits, 0, -$scale) : $digits;
+                $frac = $scale ? substr($digits, -$scale) : '';
+            }
+        } else {
+            $frac = str_pad($frac, $scale, '0');
+        }
+
+        $result = $int . ($scale > 0 ? '.' . $frac : '');
+        if ($negative && trim($result, '0.') !== '') {
+            $result = '-' . $result;
+        }
+        return $result;
+    }
+
+    /**
+     * Turns any value given for a numeric column into a plain number string
+     * ("1234.5", "-3"), or throws if it isn't a number.
+     *
+     * @param string $name
+     * @param mixed $value
+     * @param string $type
+     * @return string
+     * @throws Exception
+     */
+    protected static function NumericString(string $name, mixed $value, string $type): string
+    {
+        if (is_bool($value)) {
+            return $value ? '1' : '0';
+        }
+        if (is_int($value)) {
+            return (string)$value;
+        }
+        if (is_float($value)) {
+            if (!is_finite($value)) {
+                throw new Exception($name . ' (' . $type . ') cannot be ' . $value);
+            }
+            $value = (string)$value; // may be "1.0E+25", handled below
+        }
+
+        $s = trim((string)$value);
+        // a clean number that isn't in scientific notation is used as is,
+        // so big decimals never go through a float
+        if (is_numeric($s) && stripos($s, 'e') === false) {
+            return ltrim($s, '+');
+        }
+
+        // "$1,234.50", "1e5", "12 USD" ...
+        $n = (string)Strings::Numeric($s);
+        if (!is_numeric($n)) {
+            throw new Exception($name . ' (' . $type . ') must be a number, got "' . $s . '"');
+        }
+        return ltrim($n, '+');
+    }
+
+    /**
+     * Formats a date for a parameter in an INSERT / UPDATE. datetime2 keeps
+     * its fraction of a second and datetimeoffset keeps its UTC offset;
+     * without the offset SQL Server would store the time as +00:00.
+     *
+     * @param string $name
+     * @param DateTimeInterface $date
+     * @return string
+     */
+    protected static function SqlDateString(string $name, DateTimeInterface $date): string
+    {
+        return match (static::ColumnBaseType($name)) {
+            'datetime2'      => $date->format('Y-m-d\TH:i:s.u'),
+            'datetimeoffset' => $date->format('Y-m-d\TH:i:s.uP'),
+            default          => $date->format('Y-m-d H:i:s'),
         };
     }
 
     /**
+     * Converts a value to the PHP type that matches the column's SQL Server
+     * type, and throws an Exception when the value can't be stored in that
+     * column.
+     *
+     * Covers every SQL Server data type through SQL Server 2025:
+     *  - bit                                      → int 0 / 1
+     *  - tinyint, smallint, int, bigint            → int (range checked)
+     *  - decimal                                   → string rounded to the column scale
+     *  - numeric, money, smallmoney, float, real   → float
+     *  - char, varchar, nchar, nvarchar, text,
+     *    ntext, sysname, xml, json                 → string
+     *  - uniqueidentifier                          → string (format checked)
+     *  - date, datetime, datetime2,
+     *    smalldatetime, datetimeoffset             → DateTime
+     *  - time                                      → string (it's a time of day, not a date)
+     *  - binary, varbinary, image, timestamp,
+     *    rowversion                                → raw byte string
+     *  - geometry, geography, hierarchyid, vector  → string as the driver returns it
+     *  - sql_variant                               → unchanged
+     *
+     * Empty values: '' / null in a nullable column is null. In a NOT NULL
+     * numeric column it is 0, as before.
+     *
      * @param string $name
      * @param $value
-     * @param bool $just_checking
+     * @param bool $just_checking when true, the literal 'null' in a NOT NULL column doesn't throw
      * @return mixed
+     * @throws Exception
      */
     protected static function StrongType(string $name, $value, bool $just_checking = false): mixed
     {
@@ -999,118 +1173,180 @@ OFFSET ' . ($per_page * $page) . ' ROWS FETCH NEXT ' . $per_page . ' ROWS ONLY
         }
 
         // we can always set primary keys to null
-        if(is_null($value) && in_array($name, static::$_primary)) {
+        if (is_null($value) && in_array($name, static::$_primary)) {
             return null;
         }
 
+        $type = static::ColumnBaseType($name);
+        $nullable = (bool)static::$prop_definitions[$name]['is_nullable'];
+
+        $date_types = ['date', 'datetime', 'datetime2', 'smalldatetime', 'datetimeoffset'];
+
         if (is_object($value)) {
-            if ($value instanceof DateTime) {
+            if ($value instanceof DateTimeInterface) {
+                if (in_array($type, $date_types, true)) {
+                    return DateTime::createFromInterface($value);
+                }
                 $value = Dates::Timestamp($value);
             } else {
                 return null;
             }
         }
 
-        if ($value && strcasecmp((string)$value, 'null') == 0) {
-            if (!$just_checking) {
-                if (!static::$prop_definitions[$name]['is_nullable']) {
-                    Exception($name . ' cannot be null');
-                }
+        if (is_string($value) && strcasecmp(trim($value), 'null') == 0) {
+            if (!$just_checking && !$nullable) {
+                throw new Exception($name . ' cannot be null');
             }
             return null;
         }
 
-        $_type = static::$prop_definitions[$name]['type'];
+        // nothing set, or a blank form field
+        $empty = is_null($value) || (is_string($value) && trim($value) === '');
 
-        if (str_starts_with($_type, 'decimal')) {
-            $_type .= '(' . static::$prop_definitions[$name]['length'] . ')';
-
-            if (!preg_match('/decimal\s*\(\s*\d+\s*,\s*(\d+)\s*\)/i', $_type, $m)) {
-                Exception("Invalid decimal type: $_type");
-            }
-
-            $scale = (int) $m[1];
-
-            // Work strictly with strings — never float
-            $value = (string) $value;
-
-            // Normalize scientific notation if present
-            if (stripos($value, 'e') !== false) {
-                $value = sprintf("%.{$scale}f", (float)$value);
-            }
-
-            if (!str_contains($value, '.')) {
-                return ($value . '.' . str_repeat('0', $scale));
-            }
-
-            [$int, $frac] = explode('.', $value, 2);
-            return ($int . '.' . str_pad(substr($frac, 0, $scale), $scale, '0'));
-        }
-
-        switch ($_type) {
-            case 'date':
-            case 'timestamp':
-            case 'datetime':
-            case 'datetime2':
-                try {
-                    return $value ? new DateTime($value) : null;
-                } catch (Exception $e) {
-                    return $value;
+        switch ($type) {
+            // --- integers ---
+            case 'bit':
+                if ($empty) {
+                    return $nullable ? null : 0;
                 }
+                if (is_bool($value)) {
+                    return $value ? 1 : 0;
+                }
+                $s = strtolower(trim((string)$value));
+                if ($s === 'true') {
+                    return 1;
+                }
+                if ($s === 'false') {
+                    return 0;
+                }
+                if (!is_numeric($s)) {
+                    throw new Exception($name . ' (bit) must be 0, 1, true or false, got "' . $value . '"');
+                }
+                return (float)$s != 0 ? 1 : 0;
 
+            case 'tinyint':
+            case 'smallint':
             case 'int':
-            case 'float':
-            case 'decimal':
-            case 'numeric':
-            case 'money':
             case 'bigint':
-                if (is_null($value) && static::$prop_definitions[$name]['is_nullable']) {
-                    return null;
+                if ($empty) {
+                    return $nullable ? null : 0;
                 }
-                if (!is_numeric($value)) {
-                    if (!$value) {
-                        $value = static::$prop_definitions[$name]['is_nullable'] ? null : 0;
-                    } else {
-                        $value = Strings::Numeric($value);
-                        if (!$value) {
-                            Exception([
-                                'name'  => $name,
-                                'value' => $value,
-                                'type'  => $_type,
-                                'error' => 'value must be ' . $_type,
-                            ]);
-                        }
+                $n = static::NumericString($name, $value, $type);
+                // drop any fraction, as before ("12.7" → 12)
+                $digits = explode('.', $n, 2)[0];
+                if ($digits === '' || $digits === '-') {
+                    $digits .= '0';
+                }
+                [$min, $max] = match ($type) {
+                    'tinyint'  => [0, 255],
+                    'smallint' => [-32768, 32767],
+                    'int'      => [-2147483648, 2147483647],
+                    'bigint'   => [PHP_INT_MIN, PHP_INT_MAX],
+                };
+                $int = filter_var($digits, FILTER_VALIDATE_INT);
+                if ($int === false || $int < $min || $int > $max) {
+                    throw new Exception($name . ' (' . $type . ') must be between ' . $min . ' and ' . $max . ', got "' . $value . '"');
+                }
+                return $int;
+
+            // --- exact decimal: kept as a string so no precision is lost ---
+            case 'decimal':
+                if ($empty) {
+                    $value = $nullable ? null : 0;
+                    if (is_null($value)) {
+                        return null;
                     }
                 }
+                $n = static::NumericString($name, $value, $type);
+                $scale = static::DecimalScale($name);
+                if (is_null($scale)) {
+                    return $n;
+                }
+                return static::RoundDecimalString($n, $scale);
 
-                switch($_type) {
-                    case 'int':
-                    case 'bigint':
-                        return !is_null($value) ? (int) $value : null;
-                    default:
-                        return !is_null($value) ? (float) $value : null;
+            // --- numeric / money / floating point ---
+            case 'numeric':
+            case 'money':
+            case 'smallmoney':
+            case 'float':
+            case 'real':
+                if ($empty) {
+                    return $nullable ? null : 0.0;
+                }
+                return (float)static::NumericString($name, $value, $type);
 
+            // --- character strings ---
+            case 'char':
+            case 'varchar':
+            case 'nchar':
+            case 'nvarchar':
+            case 'text':
+            case 'ntext':
+            case 'sysname':
+            case 'xml':
+            case 'json':
+                return is_null($value) ? null : (string)$value;
+
+            case 'uniqueidentifier':
+                if ($empty) {
+                    return null;
+                }
+                $guid = trim((string)$value);
+                if (!preg_match('/^\{?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}}?$/i', $guid)) {
+                    throw new Exception($name . ' (uniqueidentifier) must be a GUID, got "' . $guid . '"');
+                }
+                return $guid;
+
+            // --- dates and times ---
+            case 'date':
+            case 'datetime':
+            case 'datetime2':
+            case 'smalldatetime':
+            case 'datetimeoffset':
+                if ($empty) {
+                    return null;
+                }
+                try {
+                    return new DateTime((string)$value);
+                } catch (Exception) {
+                    throw new Exception($name . ' (' . $type . ') must be a date, got "' . $value . '"');
                 }
 
-            case 'tinyint(1)':
-                $value = Strings::Numeric($value);
-                return $value ? 1 : 0;
+            case 'time':
+                if ($empty) {
+                    return null;
+                }
+                return (string)$value;
 
-            case 'decimal(18,2)':
-            case 'decimal(18,5)':
-            case 'int(10)':
-                $value = Strings::Numeric($value);
-                return $value * 1.0;
+            // --- binary (raw bytes) ---
+            case 'binary':
+            case 'varbinary':
+            case 'image':
+            case 'timestamp': // SQL Server's timestamp is rowversion, not a date
+            case 'rowversion':
+            // --- CLR / spatial / vector, as the driver returns them ---
+            case 'geometry':
+            case 'geography':
+            case 'hierarchyid':
+            case 'vector':
+                return is_null($value) ? null : (string)$value;
 
+            case 'sql_variant':
+                return $value;
+
+            // hand-written classes
             case 'bool':
-                return (bool) $value;
+            case 'boolean':
+                return is_null($value) ? null : (bool)$value;
         }
-        return $value;
+
+        throw new Exception('Unknown SQL Server type ' . static::$prop_definitions[$name]['type'] . ' for column ' . $name);
     }
 
     /**
      * @param bool $force_insert
      * @return QueryExecuteResult
+     * @throws Exception
      */
     protected function _GetSaveQuery(bool $force_insert = false): QueryExecuteResult
     {
@@ -1121,6 +1357,7 @@ OFFSET ' . ($per_page * $page) . ' ROWS FETCH NEXT ' . $per_page . ' ROWS ONLY
      * @param bool $force_insert
      * @param bool $return_query
      * @return QueryExecuteResult|SQL_Query|array
+     * @throws Exception
      */
     protected function _Save(bool $force_insert = false, bool $return_query = false): QueryExecuteResult|SQL_Query|array
     {
@@ -1221,7 +1458,7 @@ OFFSET ' . ($per_page * $page) . ' ROWS FETCH NEXT ' . $per_page . ' ROWS ONLY
                 } else {
                     $qs[] = '@' . $name . ' --' . $name . ' / ' . static::$prop_definitions[$name]['type'] . PHP_EOL;
                     if ($st_value instanceof DateTime) {
-                        $st_value = $st_value->format('Y-m-d H:i:s');
+                        $st_value = static::SqlDateString($name, $st_value);
                     }
                     $params[$name] = '{{{' . $st_value . '}}}'; // necessary to get past the null check in EscapeString
                 }
@@ -1292,7 +1529,7 @@ SET
                     $props[] = '[' . $name . '] = @' . $name . ' --' . $name . ' / ' . static::$prop_definitions[$name]['type'] . PHP_EOL;
 
                     if ($st_value instanceof DateTime) {
-                        $st_value = $st_value->format('Y-m-d H:i:s');
+                        $st_value = static::SqlDateString($name, $st_value);
                     }
                     $params[$name] = '{{{' . $st_value . '}}}'; // necessary to get past the null check in EscapeString
                 }
@@ -1330,6 +1567,7 @@ WHERE
      * @param bool $return_query
      *
      * @return QueryExecuteResult|SQL_Query|null
+     * @throws Exception
      */
     protected function _Insert(bool $return_query = false): SQL_Query|QueryExecuteResult|null
     {
@@ -1365,7 +1603,7 @@ INSERT INTO
             } else {
 
                 if ($st_value instanceof DateTime) {
-                    $st_value = Dates::Timestamp($value);
+                    $st_value = static::SqlDateString($name, $st_value);
                 }
 
                 $qs[] = '@' . $name . ' --' . $name . PHP_EOL;
@@ -1397,6 +1635,7 @@ INSERT INTO
     /**
      * @param bool $return_query
      * @return QueryExecuteResult|SQL_Query|null
+     * @throws Exception
      */
     protected function _Update(bool $return_query = false): SQL_Query|QueryExecuteResult|null
     {
@@ -1454,7 +1693,7 @@ SET
                 $props[] = '[' . $name . '] = @' . $name . ' --' . $name . PHP_EOL;
 
                 if ($st_value instanceof DateTime) {
-                    $st_value = Dates::Timestamp($value);
+                    $st_value = static::SqlDateString($name, $st_value);
                 }
 
                 $params[$name] = '{{{' . $st_value . '}}}'; // necessary to get past the null check in EscapeString

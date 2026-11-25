@@ -69,8 +69,10 @@ class MSSQL_TableColumn extends TableColumn
             }
         }
 
-        if ($this->NUMERIC_PRECISION || $this->NUMERIC_PRECISION_RADIX) {
-            $this->decimal_length = $this->NUMERIC_PRECISION . ',' . $this->NUMERIC_PRECISION_RADIX;
+        if (!is_null($this->NUMERIC_PRECISION)) {
+            // "precision,scale", e.g. "18,2" for decimal(18,2). This used to
+            // store the radix (always 10 or 2) where the scale belongs.
+            $this->decimal_length = $this->NUMERIC_PRECISION . ',' . $this->NUMERIC_SCALE;
         } elseif ($this->CHARACTER_MAXIMUM_LENGTH) {
             $this->decimal_length = (string)$this->CHARACTER_MAXIMUM_LENGTH;
         }

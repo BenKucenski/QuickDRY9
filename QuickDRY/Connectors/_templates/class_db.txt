@@ -8,6 +8,7 @@ namespace [[namespace]];
 use models\CurrentUser;
 use QuickDRY\Connectors\QueryExecuteResult;
 use DateTime;
+use Exception;
 
 /**
  *
@@ -51,6 +52,7 @@ class db_[[c_name]] extends [[DatabaseClassName]]
     /**
      * @param string $name
      * @return mixed
+     * @throws Exception
      */
     public function __get(string $name)
     {
@@ -63,6 +65,7 @@ class db_[[c_name]] extends [[DatabaseClassName]]
      * @param string $name
      * @param mixed $value
      * @return mixed
+     * @throws Exception
      */
     public function __set(string $name, mixed $value)
     {
@@ -76,6 +79,7 @@ class db_[[c_name]] extends [[DatabaseClassName]]
      * @param bool $save
      * @param bool $keep_existing_values
      * @return QueryExecuteResult
+     * @throws Exception
      */
     public function FromRequest(
         array $req,
