@@ -32,8 +32,6 @@ $_USE_FK_COLUMN_NAME = (int)($options['f'] ?? 0);
 $_DATABASE_CLASS = $options['o'] ?? null;
 $_GENERATE_JSON = (bool)($options['j'] ?? true);
 $_USE_DATABASE_TYPE_PREFIX = (bool)($options['p'] ?? true);
-$_JSON_INCLUDE = SQLCodeGen::ParseTableList($options['t'] ?? null);
-$_JSON_EXCLUDE = SQLCodeGen::ParseTableList($options['x'] ?? null);
 $_GENERATE_MANAGE = (bool)($options['g'] ?? true);
 
 if (!$_DATABASE) {
@@ -50,6 +48,10 @@ if (!$_DATABASE) {
 }
 
 include __DIR__ . '/../modules.php';
+
+// after modules.php: it loads the autoloader
+$_JSON_INCLUDE = SQLCodeGen::ParseTableList($options['t'] ?? null);
+$_JSON_EXCLUDE = SQLCodeGen::ParseTableList($options['x'] ?? null);
 
 $CodeGen = new MySQL_CodeGen();
 

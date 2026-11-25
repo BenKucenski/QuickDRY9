@@ -36,8 +36,6 @@ $_GENERATE_JSON = $options['j'] ?? true;
 $_SCHEMA_ONLY = $options['s'] ?? false;
 $_STARTING_TABLE = $options['z'] ?? null;
 $_USE_DATABASE_TYPE_PREFIX = (bool)($options['p'] ?? true);
-$_JSON_INCLUDE = SQLCodeGen::ParseTableList($options['t'] ?? null);
-$_JSON_EXCLUDE = SQLCodeGen::ParseTableList($options['x'] ?? null);
 $_GENERATE_MANAGE = (bool)($options['g'] ?? true);
 
 if ($_STARTING_TABLE) {
@@ -58,6 +56,10 @@ if (!$_DATABASE) {
 }
 
 include __DIR__ . '/../modules.php';
+
+// after modules.php: it loads the autoloader
+$_JSON_INCLUDE = SQLCodeGen::ParseTableList($options['t'] ?? null);
+$_JSON_EXCLUDE = SQLCodeGen::ParseTableList($options['x'] ?? null);
 
 $CodeGen = new MSSQL_CodeGen();
 
