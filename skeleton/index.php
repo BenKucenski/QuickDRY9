@@ -54,6 +54,17 @@ $web->Init(
     __DIR__
 );
 
+// Who may open what (see "Page access" in the README). Generated /json and /manage pages are
+// never open to signed-out visitors unless the navigation allows them; pages on a secure master
+// page need a sign-in. To use your menu's permission lists, build the visitor's navigation:
+//
+//     $web->SetSecureMasterPages([MASTERPAGE_USER]);
+//     $nav = new \QuickDRY\Utilities\Navigation();
+//     $nav->Combine(MenuAccess::GetForRole(CurrentUser::ID() ? ROLE_ID_USER : ROLE_ID_NOT_LOGGED_IN));
+//     $web->SetNavigation($nav);
+//     $web->SignInPage = '/signin';
+//     $web->PublicPaths = ['/api'];   // endpoints with their own key authentication
+
 // Require the CSRF token on everything that can change data. Pages need Csrf::MetaTag() in <head>
 // and /QuickDRY/js/QuickDRY.Csrf.js after jQuery (see README).
 // $web->RequireCSRFToken = true;

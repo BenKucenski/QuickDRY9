@@ -29,6 +29,37 @@ class Navigation
     }
 
     /**
+     * Whether a page is in the permission list. Case, a trailing slash, a query string and
+     * dashes vs underscores don't matter, matching how Web resolves the page
+     * (/Manage/stanworth/User/ is the same page as /manage/stanworth/user).
+     *
+     * @param string $url
+     * @return bool
+     */
+    public function Allows(string $url): bool
+    {
+        $url = self::NormalizeURL($url);
+        foreach ($this->_PERMISSIONS as $link) {
+            if (is_string($link) && self::NormalizeURL($link) === $url) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * @param string $url
+     * @return string
+     */
+    public static function NormalizeURL(string $url): string
+    {
+        $url = (string)strtok($url, '?#');
+        $url = strtolower(str_replace('-', '_', $url));
+        $url = rtrim($url, '/');
+        return $url === '' ? '/' : $url;
+    }
+
+    /**
      * @param string|null $brand
      * @return void
      */
@@ -56,7 +87,7 @@ class Navigation
             return true;
         }
 
-        if (in_array($_CUR_PAGE, $this->_PERMISSIONS)) {
+        if ($this->Allows($_CUR_PAGE)) {
             return true;
         }
 

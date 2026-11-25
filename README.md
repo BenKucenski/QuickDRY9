@@ -100,6 +100,21 @@ What the generated code enforces:
 - **Models**: a table with a `user_id` column is visible to its owner; one without is visible only to `ROLE_ID_ADMIN`, which sees and changes everything. So never give customers `ROLE_ID_ADMIN`, and make `CurrentUser::Is()` return true only for roles the user really has.
 - **Manage pages** list every row, so they require a signed-in `ROLE_ID_ADMIN` user (`CurrentUser::ID()` and `CurrentUser::Is([ROLE_ID_ADMIN])`). Pages generated before this check existed don't have it: regenerate them, or delete them.
 
+## Page access
+
+`Web::Exec()` checks who may open the page before running it, the way the legacy framework did:
+
+1. `$web->PublicPaths` (e.g. `['/api']` for endpoints with their own keys): anyone.
+2. Allowed by the visitor's navigation (`$web->SetNavigation($nav)`): yes. Matching ignores case, a trailing slash and dashes vs underscores. To make a generated `/json` or `/manage` page public, allow it for your signed-out role.
+3. `/manage` (`$web->NavigationRequiredPaths`), when there's a navigation: no, signed in or not.
+4. `/json` and `/manage` (`$web->ProtectedPaths`): signed-in users only. Signed-out visitors are sent to `$web->SignInPage` (default: the first argument to `Init()`) with `?continue=` set to the page they asked for.
+5. A page on a secure master page (`$web->SetSecureMasterPages([...])`): signed in, and allowed by the navigation if there is one.
+6. Anything else (a public master page, or none): anyone.
+
+JSON requests get a 401/403 instead of a redirect. Rules 1-4 run before the page's `Init()`, rule 5 after it, because `Init()` sets the master page; don't change data in `Init()`. Command-line runs skip the check.
+
+Signed in means `models\CurrentUser::ID()` (or a static `CurrentUser::$id`) is non-zero; change that with `$web->SetSignedInCheck(fn() => ...)`. `$web->AccessDecision()` returns what the rules decide without acting on it. A project that already checks access in its own `Web` subclass keeps working, and the framework check runs as well.
+
 ## Security helpers
 
 - **Request verbs**: `QuickDRY.js` posts with a `verb` parameter (PUT, POST, DELETE, GET). On a GET request, `verb` can only pick a read-only handler (GET, FIND, HISTORY), so a link or `<img>` can't delete or save (`Web::ResolveVerb()`).
