@@ -93,8 +93,16 @@ let QuickDRY = {
      * @constructor
      */
     Delete: function (type, vars, callback, confirmed, dialog) {
-        if (confirmed !== true && !confirm('Are you sure?')) {
-            return false;
+        if (confirmed !== true) {
+            if (typeof ConfirmDialog === 'function') {
+                ConfirmDialog('Delete', 'Are you sure?', 'Delete', function () {
+                    QuickDRY.Delete(type, vars, callback, true, dialog);
+                });
+                return false;
+            }
+            if (!confirm('Are you sure?')) {
+                return false;
+            }
         }
 
         HTTP.Wait('Please Wait', 'Deleting...', function () {
@@ -173,7 +181,33 @@ let QuickDRY = {
                 $(this).val('');
             });
     },
+    /**
+     * The SweetAlert wait popup (controls/SWAL/swal_wait.php) has no #wait_dialog element,
+     * so 'wait_dialog' means that popup when the page has no element by that id.
+     */
+    _SwalWaitIsOpen: function () {
+        if (!window.Swal || !Swal.isVisible()) {
+            return false;
+        }
+        const popup = Swal.getPopup();
+        if (popup && popup.classList.contains('qd-swal-wait')) {
+            return true;
+        }
+        // copies of swal_wait.php published before the qd-swal-wait class was added
+        const html = Swal.getHtmlContainer();
+        return !!(html && html.querySelector('img[src*="ajax-loader"]'));
+    },
+    _IsSwalWait: function (dialog_id) {
+        return dialog_id === 'wait_dialog' && !document.getElementById('wait_dialog');
+    },
     CloseDialogIfOpen: function (dialog_id) {
+        if (QuickDRY._IsSwalWait(dialog_id)) {
+            // only ever close the wait popup, never a notice or confirm that replaced it
+            if (QuickDRY._SwalWaitIsOpen()) {
+                Swal.close();
+            }
+            return;
+        }
         if (QuickDRY.DialogIsOpen(dialog_id)) {
             if ($("#" + dialog_id).hasClass("ui-dialog-content")) {
                 $('#' + dialog_id).dialog('close');
@@ -189,6 +223,10 @@ let QuickDRY = {
      * @constructor
      */
     DialogIsOpen: function (dialog_id) {
+        if (QuickDRY._IsSwalWait(dialog_id)) {
+            return QuickDRY._SwalWaitIsOpen();
+        }
+
         const elem = $("#" + dialog_id);
 
         // Bootstrap 5: modal is open if it has `.show` and is visible
@@ -330,3 +368,17 @@ $(document).on('show.bs.modal', '.modal', function () {
     }, 0);
 });
 
+// SweetAlert popups (controls/SWAL) must sit above Bootstrap modals, which the code above stacks
+// from z-index 1040 upward.
+$(function () {
+    $('<style>.swal2-container { z-index: 2000 !important; }</style>').appendTo('head');
+});
+
+// A Bootstrap modal traps focus: when a SweetAlert opens over a form, Bootstrap pulls focus back
+// into the form, so Enter/Escape act on the form instead of the popup. Keep focus events inside
+// SweetAlert from reaching Bootstrap's document-level focus trap.
+window.addEventListener('focusin', function (e) {
+    if (e.target && e.target.closest && e.target.closest('.swal2-container')) {
+        e.stopPropagation();
+    }
+}, true);

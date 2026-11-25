@@ -11,6 +11,7 @@
             Swal.fire({
                 title: title,
                 html: `<h3>${text}</h3><img src="/QuickDRY/images/ajax-loader-lg.gif" alt=""/>`,
+                customClass: {popup: 'qd-swal-wait'},
                 showConfirmButton: false,
                 showCloseButton: true,
                 allowOutsideClick: false,
