@@ -644,6 +644,9 @@ class Strings extends strongType
                 // remove leading zeros from digits but keep at least one
                 $digits = ltrim($digits, '0');
                 if ($digits === '') $digits = '0';
+                if ($digits === '0') {
+                    return 0;
+                }
 
                 $dotPos = strlen($parts[0]) + $exp;
 
@@ -658,8 +661,11 @@ class Strings extends strongType
                     $res = $sign . substr($digits, 0, $dotPos) . '.' . substr($digits, $dotPos);
                 }
 
-                // trim trailing zeros and lone dot
-                $res = rtrim(rtrim($res, '0'), '.');
+                // trim trailing zeros and lone dot - only after a decimal
+                // point, or "1.5e3" would come back as "15" instead of "1500"
+                if (str_contains($res, '.')) {
+                    $res = rtrim(rtrim($res, '0'), '.');
+                }
                 return $res === '' || $res === '-0' ? 0 : $res;
             }
         }

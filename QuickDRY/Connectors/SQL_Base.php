@@ -988,6 +988,7 @@ class SQL_Base implements JsonSerializable
      * @param bool $save
      * @param bool $keep_existing_values
      * @return QueryExecuteResult
+     * @throws Exception
      */
     public function FromRequest(array $req, bool $save = true, bool $keep_existing_values = true): QueryExecuteResult
     {
