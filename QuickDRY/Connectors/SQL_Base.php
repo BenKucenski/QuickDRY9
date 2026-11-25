@@ -30,7 +30,7 @@ class SQL_Base implements JsonSerializable
     protected static string $database;
 
     protected array $_change_log = [];
-    protected ?array $_history = null;
+    protected ?IChangeLogHistory $_history = null;
     protected ?bool $_from_db = null;
 
     public ?bool $HasChanges = false;
@@ -200,6 +200,21 @@ class SQL_Base implements JsonSerializable
      */
     public function HasChangeLog(): bool
     {
+        if (!sizeof($this->_change_log)) { // don't log when nothing changed
+            return false;
+        }
+
+        return $this->UsesChangeLog();
+    }
+
+    /**
+     * Whether this table is change logged at all, regardless of pending changes.
+     * Deletes are logged even when nothing was changed first.
+     *
+     * @return bool
+     */
+    public function UsesChangeLog(): bool
+    {
         if (defined('DISABLE_CHANGE_LOG') && DISABLE_CHANGE_LOG) {
             return false;
         }
@@ -207,10 +222,6 @@ class SQL_Base implements JsonSerializable
             return false;
         }
         if (strcasecmp(static::$table, 'changelog') == 0) { // don't change log the change log
-            return false;
-        }
-
-        if (!sizeof($this->_change_log)) { // don't log when nothing changed
             return false;
         }
 
@@ -308,6 +319,10 @@ class SQL_Base implements JsonSerializable
      */
     public function __get(string $name)
     {
+        // @property IChangeLogHistory history, unless the table has a column named history
+        if ($name === 'history' && !array_key_exists($name, $this->props)) {
+            return $this->History();
+        }
         return $this->GetProperty($name);
     }
 
@@ -322,7 +337,7 @@ class SQL_Base implements JsonSerializable
     /**
      * @return IChangeLogHistory|null
      */
-    public function History(): ?array
+    public function History(): ?IChangeLogHistory
     {
         if (is_null($this->_history)) {
             $this->_history = $this->_history();

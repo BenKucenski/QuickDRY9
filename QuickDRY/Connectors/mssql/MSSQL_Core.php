@@ -461,7 +461,7 @@ class MSSQL_Core extends SQL_Base implements ISQLCore
             return new QueryExecuteResult();
         }
 
-        if ($this->HasChangeLog()) {
+        if ($this->UsesChangeLog()) {
             $uuid = $this->PrimaryKey();
 
             if ($uuid) {
@@ -1557,6 +1557,7 @@ WHERE
             $uuid = $this->PrimaryKey();
             if ($uuid) {
                 ChangeLog::Create($this);
+                $this->_change_log = [];
 
             }
         }

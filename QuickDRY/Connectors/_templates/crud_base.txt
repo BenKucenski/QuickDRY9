@@ -311,7 +311,8 @@ class [[table_nice_name]]Base extends BasePage
                 $r = [
                     'Rev' => $m - $i,
                     'Column' => $column,
-                    'Value' => self::$Item->ValueToNiceValue($column),
+                    // deletes are logged against a pseudo column ("object"), which has no current value
+                    'Value' => [[c_name]]::check_props($column) ? self::$Item->ValueToNiceValue($column) : '',
                     'Was' => self::$Item->ValueToNiceValue($column, $change->old, true),
                     'Now' => self::$Item->ValueToNiceValue($column, $change->new, true),
                     'When' => Dates::StandardDateTime($cl->created_at),
