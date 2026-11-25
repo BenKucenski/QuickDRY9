@@ -32,6 +32,18 @@ class SQLCodeGen extends strongType
     protected ?string $DatabaseType = null;
     protected ?bool $GenerateJSON = null;
 
+    /**
+     * Which tables get /json endpoints (and /manage pages). Each entry is a table name or the
+     * class "nice name" (e.g. "user_mfa_code" or "UserMfaCode"), and may use shell wildcards
+     * ("user_*"). Matching ignores case. null = every table; the exclude list wins.
+     * Set with SetJSONTables().
+     */
+    protected ?array $JSONInclude = null;
+    protected ?array $JSONExclude = null;
+
+    /** Whether to generate the admin-only /manage pages for the tables above. */
+    protected bool $GenerateManage = true;
+
     protected ?string $CommonFolder = null;
     protected ?string $CommonClassFolder = null;
     protected ?string $CommonClassDBFolder = null;
@@ -82,11 +94,7 @@ class SQLCodeGen extends strongType
         $this->PagesBaseManageFolder = $this->DestinationFolder . '/pages/manage';
 
         if (!is_dir($this->PagesBaseJSONFolder)) {
-            mkdir($this->PagesBaseJSONFolder);
-        }
-
-        if (!is_dir($this->PagesBaseManageFolder)) {
-            mkdir($this->PagesBaseManageFolder);
+            mkdir($this->PagesBaseJSONFolder, 0777, true);
         }
 
         if (!is_dir($this->CommonFolder)) {
@@ -632,6 +640,77 @@ class SQLCodeGen extends strongType
     }
 
     /**
+     * Limit which tables get /json endpoints and /manage pages.
+     *
+     * @param string[]|null $include tables to generate (null = all)
+     * @param string[]|null $exclude tables to skip (wins over $include)
+     * @return void
+     */
+    public function SetJSONTables(?array $include = null, ?array $exclude = null): void
+    {
+        $this->JSONInclude = $include === null ? null : array_values(array_filter(array_map('trim', $include), 'strlen'));
+        $this->JSONExclude = $exclude === null ? null : array_values(array_filter(array_map('trim', $exclude), 'strlen'));
+    }
+
+    /**
+     * @param bool $generate
+     * @return void
+     */
+    public function SetGenerateManage(bool $generate): void
+    {
+        $this->GenerateManage = $generate;
+    }
+
+    /**
+     * "a, b,c*" -> ['a', 'b', 'c*']; empty -> null (no list).
+     *
+     * @param string|null $list
+     * @return string[]|null
+     */
+    public static function ParseTableList(?string $list): ?array
+    {
+        if ($list === null || trim($list) === '') {
+            return null;
+        }
+        return array_values(array_filter(array_map('trim', explode(',', $list)), 'strlen'));
+    }
+
+    /**
+     * @param string[] $patterns
+     * @param string $table_name
+     * @param string $table_nice_name
+     * @return bool
+     */
+    private static function MatchesAny(array $patterns, string $table_name, string $table_nice_name): bool
+    {
+        foreach ($patterns as $pattern) {
+            $pattern = strtolower($pattern);
+            if (fnmatch($pattern, strtolower($table_name)) || fnmatch($pattern, strtolower($table_nice_name))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Whether a table gets a /json endpoint (and /manage page), per SetJSONTables().
+     *
+     * @param string $table_name
+     * @param string $table_nice_name
+     * @return bool
+     */
+    public function JSONTableAllowed(string $table_name, string $table_nice_name): bool
+    {
+        if ($this->JSONExclude && self::MatchesAny($this->JSONExclude, $table_name, $table_nice_name)) {
+            return false;
+        }
+        if ($this->JSONInclude !== null) {
+            return self::MatchesAny($this->JSONInclude, $table_name, $table_nice_name);
+        }
+        return true;
+    }
+
+    /**
      * @return void
      */
     public function GenerateJSON(): void
@@ -643,7 +722,18 @@ class SQLCodeGen extends strongType
 
         $DatabaseClass = $this->DatabaseClass;
 
+        if (!method_exists($DatabaseClass, 'TableToNiceName')) {
+            exit("$DatabaseClass::TableToNiceName");
+        }
+
         foreach ($this->Tables as $table_name) {
+            $table_nice_name = $DatabaseClass::TableToNiceName($table_name, (bool)$this->LowerCaseTables);
+
+            if (!$this->JSONTableAllowed($table_name, $table_nice_name)) {
+                Log::Insert($table_name . ': skipped (not in the JSON table list)');
+                continue;
+            }
+
             Log::Insert($table_name);
 
             $this->PagesJSONFolder = $this->PagesBaseJSONFolder . '/' . $this->DatabaseFolderName();
@@ -651,12 +741,6 @@ class SQLCodeGen extends strongType
             if (!is_dir($this->PagesJSONFolder)) {
                 mkdir($this->PagesJSONFolder);
             }
-
-            if (!method_exists($DatabaseClass, 'TableToNiceName')) {
-                exit("$DatabaseClass::TableToNiceName");
-            }
-
-            $table_nice_name = $DatabaseClass::TableToNiceName($table_name, (bool)$this->LowerCaseTables);
 
             $this->PagesJSONFolder .= '/' . $table_nice_name;
             if (!is_dir($this->PagesJSONFolder)) {
@@ -673,15 +757,21 @@ class SQLCodeGen extends strongType
             }
 
 
-            $this->PagesManageFolder = $this->PagesBaseManageFolder . '/' . $this->DatabaseFolderName();
+            if ($this->GenerateManage) {
+                if (!is_dir($this->PagesBaseManageFolder)) {
+                    mkdir($this->PagesBaseManageFolder, 0777, true);
+                }
 
-            if (!is_dir($this->PagesManageFolder)) {
-                mkdir($this->PagesManageFolder);
-            }
+                $this->PagesManageFolder = $this->PagesBaseManageFolder . '/' . $this->DatabaseFolderName();
 
-            $this->PagesManageFolder .= '/' . $table_nice_name;
-            if (!is_dir($this->PagesManageFolder)) {
-                mkdir($this->PagesManageFolder);
+                if (!is_dir($this->PagesManageFolder)) {
+                    mkdir($this->PagesManageFolder);
+                }
+
+                $this->PagesManageFolder .= '/' . $table_nice_name;
+                if (!is_dir($this->PagesManageFolder)) {
+                    mkdir($this->PagesManageFolder);
+                }
             }
 
             if (!method_exists($DatabaseClass, 'GetTableColumns')) {
@@ -720,9 +810,11 @@ class SQLCodeGen extends strongType
 
         $this->Add($c_name, $table_name, $cols, $primary, $table_nice_name);
         $this->History($c_name, $table_nice_name, $primary);
-        $this->Manage($c_name, $table_nice_name, $primary);
+        if ($this->GenerateManage) {
+            $this->Manage($c_name, $table_nice_name, $primary);
+        }
 
-        $this->CRUDClass($c_name, $table_nice_name, $primary);
+        $this->CRUDClass($c_name, $table_nice_name, $primary, $cols, $table_name);
     }
 
     /**
@@ -731,11 +823,15 @@ class SQLCodeGen extends strongType
      * @param $primary
      * @return void
      */
-    protected function CRUDClass($c_name, $table_nice_name, $primary): void
+    protected function CRUDClass($c_name, $table_nice_name, $primary, array $cols = [], string $table_name = ''): void
     {
         if (!sizeof($primary)) {
             return;
         }
+
+        $column_names = array_map(fn($col) => (string)$col->field, $cols);
+        $owner_column = in_array('user_id', $column_names, true) ? 'user_id' : '';
+        $references = $this->OwnedReferences($table_name, $column_names, $primary);
         $namespace = 'json\\' . $this->Namespace();
 
         $get_params = [];
@@ -783,6 +879,11 @@ class SQLCodeGen extends strongType
             'table_nice_name'  => $table_nice_name,
             'missing_params'   => $missing_params,
             'namespace'        => $namespace,
+            'owner_column'     => $owner_column,
+            'fields'           => self::PHPArray(array_diff(self::EditableColumns($column_names, $primary), self::SensitiveColumns($column_names))),
+            'hidden_columns'   => self::PHPArray(self::SensitiveColumns($column_names)),
+            'primary_columns'  => self::PHPArray(array_values($primary)),
+            'references'       => self::PHPMap($references),
         ];
 
         $include_php = $template;
@@ -791,6 +892,107 @@ class SQLCodeGen extends strongType
         }
 
         self::SaveFile($this->PagesJSONFolder . '/base', $table_nice_name . 'Base', $include_php, true);
+    }
+
+    /**
+     * Columns the generated form edits, and so the only ones the generated endpoint accepts:
+     * not the primary key, the owner (user_id), *_by_id, *_at or *_file columns.
+     *
+     * @param string[] $columns
+     * @param string[] $primary
+     * @return string[]
+     */
+    public static function EditableColumns(array $columns, array $primary): array
+    {
+        return array_values(array_filter($columns, fn(string $col) => !in_array($col, $primary, true)
+            && $col !== 'user_id'
+            && !str_ends_with($col, '_by_id')
+            && !str_ends_with($col, '_at')
+            && !str_ends_with($col, '_file')
+        ));
+    }
+
+    /**
+     * Columns that look like secrets (passwords, hashes, tokens, keys). The generated endpoint
+     * never sends them back or accepts them; set them in your own code (e.g. with
+     * Security::HashPassword()).
+     *
+     * @param string[] $columns
+     * @return string[]
+     */
+    public static function SensitiveColumns(array $columns): array
+    {
+        return array_values(array_filter($columns, fn(string $col) => (bool)preg_match(
+            '/(^|_)(password|passwd|pwd|secret|token|salt|otp|mfa_code|api_key|private_key)($|_)|_hash$|^cookie_/i',
+            $col
+        )));
+    }
+
+    /**
+     * Foreign-key columns (that a request may set) pointing at a table with an owner column
+     * (user_id), mapped to the referenced class and column. The generated endpoint refuses values
+     * whose row the signed-in user can't see.
+     *
+     * @param string $table_name
+     * @param string[] $column_names
+     * @param string[] $primary
+     * @return array<string, string> column => 'Class::column'
+     */
+    protected function OwnedReferences(string $table_name, array $column_names, array $primary): array
+    {
+        $DatabaseClass = $this->DatabaseClass;
+        if ($table_name === '' || !method_exists($DatabaseClass, 'GetForeignKeys')) {
+            return [];
+        }
+
+        $editable = self::EditableColumns($column_names, $primary);
+        $owned_tables = [];
+        $refs = [];
+        foreach ($DatabaseClass::GetForeignKeys($table_name) as $fk) {
+            if (is_array($fk->column_name) || !in_array((string)$fk->column_name, $editable, true)) {
+                continue;
+            }
+            $foreign_table = (string)$fk->foreign_table_name;
+            if (!isset($owned_tables[$foreign_table])) {
+                $foreign_columns = array_map(fn($col) => (string)$col->field, $DatabaseClass::GetTableColumns($foreign_table));
+                $owned_tables[$foreign_table] = in_array('user_id', $foreign_columns, true);
+            }
+            if (!$owned_tables[$foreign_table]) {
+                continue;
+            }
+            $foreign_column = is_array($fk->foreign_column_name) ? null : (string)$fk->foreign_column_name;
+            $class = SQL_Base::TableToClass(
+                $this->DatabasePrefix,
+                $foreign_table,
+                $this->LowerCaseTables,
+                $this->NamingDatabaseTypePrefix(),
+                $this->UseDatabaseTypePrefix
+            );
+            $refs[(string)$fk->column_name] = 'common\\' . $this->Namespace() . '\\' . $class . '::' . ($foreign_column ?: 'id');
+        }
+        return $refs;
+    }
+
+    /**
+     * @param array<string, string> $map
+     * @return string e.g. ['a' => 'b']
+     */
+    private static function PHPMap(array $map): string
+    {
+        $parts = [];
+        foreach ($map as $k => $v) {
+            $parts[] = var_export((string)$k, true) . ' => ' . var_export((string)$v, true);
+        }
+        return '[' . implode(', ', $parts) . ']';
+    }
+
+    /**
+     * @param string[] $values
+     * @return string e.g. ['a', 'b']
+     */
+    private static function PHPArray(array $values): string
+    {
+        return '[' . implode(', ', array_map(fn($v) => var_export((string)$v, true), array_values($values))) . ']';
     }
 
     /**
@@ -926,7 +1128,7 @@ class SQLCodeGen extends strongType
             'table_nice_name' => $table_nice_name,
             'JSONFolder'      => $this->DatabaseFolderName(),
             'form'            => $form,
-            'use_models'      => implode("\r\n", $db_use),
+            'use_models'      => implode("\r\n", array_unique($db_use)), // two FKs to one table = one import
         ];
 
         $template = file_get_contents(__DIR__ . '/_templates/add.txt');

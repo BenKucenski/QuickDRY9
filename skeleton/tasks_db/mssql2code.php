@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 
+use QuickDRY\Connectors\SQLCodeGen;
 use QuickDRY\Connectors\mssql\MSSQL_CodeGen;
 
 $opts = 'd::';
@@ -16,6 +17,9 @@ $opts .= 'j::';
 $opts .= 's::';
 $opts .= 'z::';
 $opts .= 'p::';
+$opts .= 't::';
+$opts .= 'x::';
+$opts .= 'g::';
 
 $options = getopt($opts);
 
@@ -32,6 +36,9 @@ $_GENERATE_JSON = $options['j'] ?? true;
 $_SCHEMA_ONLY = $options['s'] ?? false;
 $_STARTING_TABLE = $options['z'] ?? null;
 $_USE_DATABASE_TYPE_PREFIX = (bool)($options['p'] ?? true);
+$_JSON_INCLUDE = SQLCodeGen::ParseTableList($options['t'] ?? null);
+$_JSON_EXCLUDE = SQLCodeGen::ParseTableList($options['x'] ?? null);
+$_GENERATE_MANAGE = (bool)($options['g'] ?? true);
 
 if ($_STARTING_TABLE) {
     define('STARTING_TABLE', $_STARTING_TABLE);
@@ -43,6 +50,9 @@ if (!$_DATABASE) {
         ' usage: -d<database> -c<database constant optional>' .
         ' -u<user class> -v<user variable> -i<user id column>' .
         ' -p<use database type prefix: 1 or 0, default 1>' .
+        ' -t<tables to generate /json endpoints for, comma-separated, wildcards ok; default all>' .
+        ' -x<tables to skip, comma-separated, wildcards ok>' .
+        ' -g<generate the admin-only /manage pages: 1 or 0, default 1>' .
         PHP_EOL
     );
 }
@@ -65,6 +75,10 @@ $CodeGen->Init(
     __DIR__ . '/..',
     $_USE_DATABASE_TYPE_PREFIX
 );
+
+// Only expose the tables your screens need, e.g. -t"invoice,project*" -x"user_mfa_code,api_*"
+$CodeGen->SetJSONTables($_JSON_INCLUDE, $_JSON_EXCLUDE);
+$CodeGen->SetGenerateManage($_GENERATE_MANAGE);
 
 if ($_SCHEMA_ONLY) {
     $CodeGen->DumpSchema();

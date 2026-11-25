@@ -76,7 +76,37 @@ Then, in the existing project:
 
 - Pages live in `pages/<path>/<name>.php` (class `pages\<path>\<name>` extending `QuickDRY\Web\BasePage`), with an optional `<name>.html.php` view.
 - Master pages live in `<app root>/masterpages/`. The app root is the third argument to `Web::Init()`, normally `__DIR__` in `index.php`.
-- Code generation: `php tasks_db/mysql2code.php -d<database>` or `php tasks_db/mssql2code.php -d<database>`.
+- Code generation: `php tasks_db/mysql2code.php -d<database>` or `php tasks_db/mssql2code.php -d<database>`. See below.
+
+## Code generation
+
+The generator writes a model per table (`common/<db>/`), and for each table a JSON endpoint (`pages/json/<db>/<Table>/`, used by `QuickDRY.Read/Create/Update/ConfirmDelete`) and an admin page (`pages/manage/<db>/<Table>/`).
+
+Only generate endpoints for the tables your screens use. Every generated endpoint can be called by any signed-in user, so tables like MFA codes, trusted devices, API keys or settings shouldn't have one:
+
+```
+php tasks_db/mysql2code.php -dmydb -t"invoice*,project,project_task" -x"invoice_adjustment" -g0
+```
+
+- `-t` tables to generate endpoints for, comma-separated (default: all). A table name or its class name (`user_mfa_code` or `UserMfaCode`), shell wildcards allowed, case ignored.
+- `-x` tables to skip; wins over `-t`.
+- `-g0` skips the `/manage` pages (default `-g1`).
+
+In your own script: `$CodeGen->SetJSONTables(['invoice*'], ['invoice_adjustment']); $CodeGen->SetGenerateManage(false);` before `GenerateJSON()`. The generator never deletes files, so remove endpoints you no longer want by hand.
+
+What the generated code enforces:
+
+- **Endpoints** (`base/<Table>Base.php`, rewritten on every run; customize in `<Table>.php`): records load by primary key and must pass the model's `VisibleTo()` (and `CanDelete()` to delete); otherwise it's "Invalid ID". Only the columns in `Fields()` are taken from a request: the ones the generated form edits, minus the primary key, `user_id`, `*_by_id`, `*_at`, `*_file` and secret-looking columns. A new record's `user_id` is the signed-in user. `HiddenColumns()` (passwords, `*_hash`, tokens, secrets, keys) are never sent back. Foreign keys into tables with a `user_id` must point at rows the user can see (`References()`); add other checks by overriding `CheckReferences()`, `Fields()` or `HiddenColumns()`.
+- **Models**: a table with a `user_id` column is visible to its owner; one without is visible only to `ROLE_ID_ADMIN`, which sees and changes everything. So never give customers `ROLE_ID_ADMIN`, and make `CurrentUser::Is()` return true only for roles the user really has.
+- **Manage pages** list every row, so they require a signed-in `ROLE_ID_ADMIN` user (`CurrentUser::ID()` and `CurrentUser::Is([ROLE_ID_ADMIN])`). Pages generated before this check existed don't have it: regenerate them, or delete them.
+
+## Security helpers
+
+- **Request verbs**: `QuickDRY.js` posts with a `verb` parameter (PUT, POST, DELETE, GET). On a GET request, `verb` can only pick a read-only handler (GET, FIND, HISTORY), so a link or `<img>` can't delete or save (`Web::ResolveVerb()`).
+- **CSRF**: set `$web->RequireCSRFToken = true;` in `index.php` to require the session's token on anything that can change data. Pages send it by putting `<?php echo Csrf::MetaTag(); ?>` in `<head>` and loading `/QuickDRY/js/QuickDRY.Csrf.js` after jQuery. That script adds the token to same-origin jQuery requests, `fetch` and POST forms, and provides `PostLink(a)` / `PostTo(url)` for buttons that change data. Forms built without it can include `Csrf::HiddenInput()`. Without a valid token the request gets a JSON 403, or a redirect back with an error.
+- **Passwords**: `Security::HashPassword()`, `Security::VerifyPassword()` and `Security::PasswordNeedsRehash()`. `VerifyPassword()` also accepts the unsalted MD5 hashes (`Security::MD5()`) older apps stored, so you can re-hash them at the next sign-in. Don't use `Security::MD5()` for passwords.
+- **Rate limits**: `RateLimit::TooMany($bucket, $key, $max, $seconds)`, `RateLimit::Hit(...)` and `RateLimit::Clear(...)` for sign-in, sign-up, reset and MFA attempts. Counters are files under `RateLimit::$Folder` (default: the system temp folder), so it suits a single web server.
+- **Skeleton defaults**: the session cookie is `HttpOnly`, `SameSite=Lax` and `Secure` over HTTPS. Errors are displayed only when `env.php` sets `SHOW_ERRORS`. The placeholder `CurrentUser::Is()` returns false.
 
 ## Optional extensions
 

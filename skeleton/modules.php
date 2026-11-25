@@ -2,8 +2,8 @@
 declare(strict_types=1);
 // require modules.php in command line scripts
 
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
+ini_set('display_errors', '0');          // shown only if env.php sets SHOW_ERRORS (below)
+ini_set('display_startup_errors', '0');
 error_reporting(E_ALL ^ E_DEPRECATED);
 date_default_timezone_set('GMT');
 
@@ -13,6 +13,11 @@ require_once __DIR__ . '/vendor/autoload.php';
 
 // Your global constants (SESSION_NAME, DATA_FOLDER, DB credentials, ...)
 require_once __DIR__ . '/env.php';
+
+if (defined('SHOW_ERRORS') && SHOW_ERRORS) {
+    ini_set('display_errors', '1');
+    ini_set('display_startup_errors', '1');
+}
 
 /**
  * @return string

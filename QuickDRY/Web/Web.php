@@ -55,6 +55,13 @@ class Web extends strongType
     public ?int $StartTime = null;
     public ?int $InitTime = null;
 
+    /**
+     * Require the session's CSRF token (Csrf::Token()) on every request that can change data.
+     * Pages must send it: put Csrf::MetaTag() in the <head> and load /QuickDRY/js/QuickDRY.Csrf.js
+     * after jQuery. Off by default so existing projects keep working; turn it on in index.php.
+     */
+    public bool $RequireCSRFToken = false;
+
     public ?string $DefaultPage = null;
     public ?string $DefaultUserPage = null;
 
@@ -244,9 +251,35 @@ class Web extends strongType
         $temp = explode('.', $this->CurrentPageName);
         $this->PageClass = $this->Namespace . '\\' . $temp[0];
 
-        $this->Verb = strtoupper($_REQUEST['verb'] ?? ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+        $this->Verb = self::ResolveVerb($_SERVER['REQUEST_METHOD'] ?? 'GET', $_REQUEST['verb'] ?? null);
 
         $this->SetURLs();
+    }
+
+    /** Verbs that only read. A GET request may use ?verb= to pick one of these, never a write. */
+    public const array READ_VERBS = ['GET', 'FIND', 'HISTORY'];
+
+    /**
+     * The handler to run: the HTTP method, or the request's "verb" parameter (QuickDRY.js sends
+     * POST with verb=PUT/POST/DELETE/GET). On a GET or HEAD request the parameter can only choose
+     * a read-only verb, so a link or <img src> can't delete or save anything.
+     *
+     * @param string $method REQUEST_METHOD
+     * @param mixed $verb the request's "verb" parameter, if any
+     * @return string
+     */
+    public static function ResolveVerb(string $method, mixed $verb): string
+    {
+        $method = strtoupper($method);
+        if ($method === 'HEAD') {
+            $method = 'GET';
+        }
+        $verb = is_string($verb) && $verb !== '' ? strtoupper($verb) : $method;
+
+        if ($method === 'GET' && !in_array($verb, self::READ_VERBS, true)) {
+            return 'GET';
+        }
+        return $verb;
     }
 
     /**
@@ -290,6 +323,10 @@ class Web extends strongType
         }
 
         if ($this->ControllerFile) {
+            if ($this->RequireCSRFToken) {
+                Csrf::Check($this->Verb);
+            }
+
             require_once $this->ControllerFile;
 
             /* @var BasePage $class */
@@ -321,6 +358,15 @@ class Web extends strongType
                     break;
                 case 'OPTIONS':
                     $class::Options();
+                    break;
+                case 'FIND':
+                    $class::Find();
+                    break;
+                case 'HISTORY':
+                    if (!method_exists($class, 'History')) {
+                        exit('unknown REQUEST_METHOD: ' . $this->Verb);
+                    }
+                    $class::History();
                     break;
                 default:
                     exit('unknown REQUEST_METHOD: ' . $this->Verb);

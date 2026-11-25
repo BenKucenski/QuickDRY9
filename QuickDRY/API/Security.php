@@ -448,12 +448,62 @@ class Security extends strongType
     }
 
     /**
+     * Upper-case hex MD5. A checksum only: never use it for passwords (use HashPassword()).
+     *
      * @param string $data
      * @return string
      */
     public static function MD5(string $data): string
     {
         return strtoupper(hash('md5', $data));
+    }
+
+    /**
+     * Hash a password for storage (bcrypt/argon via password_hash()).
+     *
+     * @param string $password
+     * @return string
+     */
+    public static function HashPassword(string $password): string
+    {
+        return password_hash($password, PASSWORD_DEFAULT);
+    }
+
+    /**
+     * Check a password against a stored hash. Also accepts the legacy unsalted MD5 hashes
+     * (Security::MD5) older QuickDRY apps stored, so they can be upgraded on the next sign-in:
+     *
+     *     if (Security::VerifyPassword($password, $user->password)) {
+     *         if (Security::PasswordNeedsRehash($user->password)) {
+     *             $user->password = Security::HashPassword($password);
+     *             $user->Save();
+     *         }
+     *     }
+     *
+     * @param string $password
+     * @param string|null $stored
+     * @return bool
+     */
+    public static function VerifyPassword(string $password, ?string $stored): bool
+    {
+        if (!$stored || $password === '') {
+            return false;
+        }
+        if (password_get_info($stored)['algo'] !== null) {
+            return password_verify($password, $stored);
+        }
+        return strlen($stored) === 32 && ctype_xdigit($stored) && hash_equals(strtoupper($stored), self::MD5($password));
+    }
+
+    /**
+     * True for legacy MD5 hashes and for hashes made with older password_hash() settings.
+     *
+     * @param string $stored
+     * @return bool
+     */
+    public static function PasswordNeedsRehash(string $stored): bool
+    {
+        return password_get_info($stored)['algo'] === null || password_needs_rehash($stored, PASSWORD_DEFAULT);
     }
 
     /**
