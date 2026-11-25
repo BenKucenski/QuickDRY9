@@ -29,6 +29,18 @@ register_shutdown_function('shutdown');
 
 require_once 'modules.php';
 
+// Session cookie: not readable by JavaScript, not sent on cross-site POSTs, HTTPS-only over HTTPS
+// (X-Forwarded-Proto covers a TLS-terminating proxy or tunnel in front of the site).
+ini_set('session.use_strict_mode', '1');
+ini_set('session.use_only_cookies', '1');
+session_set_cookie_params([
+    'lifetime' => 0,
+    'path'     => '/',
+    'secure'   => (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || strtolower($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https',
+    'httponly' => true,
+    'samesite' => 'Lax',
+]);
 session_name(SESSION_NAME);
 session_start();
 
@@ -41,5 +53,9 @@ $web->Init(
     '/home',
     __DIR__
 );
+
+// Require the CSRF token on everything that can change data. Pages need Csrf::MetaTag() in <head>
+// and /QuickDRY/js/QuickDRY.Csrf.js after jQuery (see README).
+// $web->RequireCSRFToken = true;
 
 $web->Exec();
