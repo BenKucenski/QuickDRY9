@@ -4,11 +4,11 @@ declare(strict_types=1);
 namespace QuickDRY\Tests;
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
-use PHPUnit\Framework\Attributes\RunInSeparateProcess;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 use PHPUnit\Framework\TestCase;
 
 // Constants can't be undefined, so every test gets its own process.
-#[RunInSeparateProcess]
+#[RunTestsInSeparateProcesses]
 #[PreserveGlobalState(false)]
 final class DebugRedactSkipTest extends TestCase
 {
