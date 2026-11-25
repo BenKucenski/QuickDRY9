@@ -6,6 +6,7 @@ namespace QuickDRY\Web;
 use QuickDRY\Connectors\mssql\MSSQL_Connection;
 use QuickDRY\Connectors\mysql\MySQL_Connection;
 use QuickDRY\Utilities\HTTP;
+use QuickDRY\Utilities\Navigation;
 use QuickDRY\Utilities\strongType;
 
 /**
@@ -61,6 +62,42 @@ class Web extends strongType
      * after jQuery. Off by default so existing projects keep working; turn it on in index.php.
      */
     public bool $RequireCSRFToken = false;
+
+    /**
+     * Pages the signed-in user (or, signed out, the public) may open. Set it with SetNavigation()
+     * before Exec(); see EnforceAccess() for how it's used.
+     */
+    public ?Navigation $AccessNavigation = null;
+
+    /** Where signed-out visitors are sent; ?continue= holds the page they asked for. Default: DefaultPage. */
+    public ?string $SignInPage = null;
+
+    /**
+     * Generated pages (QuickDRY's code generator) that are never public unless the navigation
+     * allows the page for signed-out visitors or it's under PublicPaths.
+     * @var string[]
+     */
+    public array $ProtectedPaths = ['/json', '/manage'];
+
+    /**
+     * When there's a navigation (SetNavigation), pages here need to be allowed by it, signed in or
+     * not, like the legacy framework did. Generated /manage pages list whole tables.
+     * @var string[]
+     */
+    public array $NavigationRequiredPaths = ['/manage'];
+
+    /**
+     * Paths that skip the access check entirely, e.g. ['/api'] for endpoints that authenticate
+     * with their own keys.
+     * @var string[]
+     */
+    public array $PublicPaths = [];
+
+    /** Turn the access check off (not recommended). */
+    public bool $AccessCheckEnabled = true;
+
+    /** @var callable|null returns true when someone is signed in; default asks models\CurrentUser */
+    private $SignedInCheck = null;
 
     public ?string $DefaultPage = null;
     public ?string $DefaultUserPage = null;
@@ -311,6 +348,163 @@ class Web extends strongType
     }
 
     /**
+     * The pages this visitor may open: build it from the signed-in user's roles (or the signed-out
+     * role) before Exec(), e.g. $web->SetNavigation(Menu::ForRoles(CurrentUser::Roles()));
+     */
+    public function SetNavigation(?Navigation $navigation): void
+    {
+        $this->AccessNavigation = $navigation;
+    }
+
+    /**
+     * How Web tells whether someone is signed in. Default: models\CurrentUser::ID() (or its
+     * static $id), the convention generated code uses.
+     */
+    public function SetSignedInCheck(?callable $check): void
+    {
+        $this->SignedInCheck = $check;
+    }
+
+    /**
+     * @return bool
+     */
+    public function IsSignedIn(): bool
+    {
+        if ($this->SignedInCheck) {
+            return (bool)($this->SignedInCheck)();
+        }
+        $class = 'models\\CurrentUser';
+        if (class_exists($class)) {
+            if (method_exists($class, 'ID')) {
+                return (bool)$class::ID();
+            }
+            if (property_exists($class, 'id')) {
+                return (bool)$class::$id;
+            }
+        }
+        return false; // can't tell: treat as signed out
+    }
+
+    /**
+     * @param string $page
+     * @param string[] $prefixes
+     * @return bool
+     */
+    public static function PathStartsWith(string $page, array $prefixes): bool
+    {
+        $page = Navigation::NormalizeURL($page);
+        foreach ($prefixes as $prefix) {
+            $prefix = Navigation::NormalizeURL($prefix);
+            if ($prefix === '/' || $page === $prefix || str_starts_with($page, $prefix . '/')) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Who may open the requested page. Called by Exec(): the path rules before the page's Init(),
+     * the master page rule after it (Init() picks the master page), so keep work that changes
+     * data out of Init().
+     *
+     *   1. PublicPaths: anyone.
+     *   2. Allowed by the navigation (SetNavigation): yes. This is how a /json or /manage page is
+     *      made public: allow it for the signed-out role.
+     *   3. NavigationRequiredPaths (/manage), when there's a navigation: not allowed by it, so no.
+     *      ProtectedPaths (/json, /manage): signed in only. The endpoint's own checks still apply
+     *      (VisibleTo(), and admins only on generated /manage pages).
+     *   4. A secure master page (SetSecureMasterPages): signed in, and, when there's a navigation,
+     *      allowed by it.
+     *   5. Anything else (a public master page, or none): anyone.
+     *
+     * @param bool $after_init false = path rules (1-3), true = master page rule (4)
+     * @return void
+     */
+    public function EnforceAccess(bool $after_init = false): void
+    {
+        if (!$this->AccessCheckEnabled || PHP_SAPI === 'cli') {
+            return;
+        }
+
+        switch ($this->AccessDecision($after_init)) {
+            case 'signin':
+                $this->Deny(false);
+                break;
+            case 'deny':
+                $this->Deny(true);
+                break;
+        }
+    }
+
+    /**
+     * The rules EnforceAccess() applies, without acting on them.
+     *
+     * @param bool $after_init
+     * @return string 'allow', 'signin' (not signed in) or 'deny' (signed in, not allowed)
+     */
+    public function AccessDecision(bool $after_init = false): string
+    {
+        $page = $this->CurrentPage ?? '/';
+
+        if (self::PathStartsWith($page, $this->PublicPaths)) {
+            return 'allow';
+        }
+        if ($this->AccessNavigation && $this->AccessNavigation->Allows($page)) {
+            return 'allow';
+        }
+
+        $signed_in = $this->IsSignedIn();
+
+        if (!$after_init) {
+            if ($this->AccessNavigation && self::PathStartsWith($page, $this->NavigationRequiredPaths)) {
+                return $signed_in ? 'deny' : 'signin';
+            }
+            if (self::PathStartsWith($page, $this->ProtectedPaths) && !$signed_in) {
+                return 'signin';
+            }
+            return 'allow';
+        }
+
+        if (!$this->IsSecureMasterPage()) {
+            return 'allow';
+        }
+        if (!$signed_in) {
+            return 'signin';
+        }
+        return $this->AccessNavigation ? 'deny' : 'allow';
+    }
+
+    /**
+     * @param bool $signed_in
+     * @return void
+     */
+    private function Deny(bool $signed_in): void
+    {
+        $uri = $_SERVER['REQUEST_URI'] ?? ($this->CurrentPage ?? '/');
+        $wants_json = $this->IsJSON
+            || self::PathStartsWith($this->CurrentPage ?? '/', ['/json'])
+            || strtolower($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') === 'xmlhttprequest'
+            || str_contains(strtolower($_SERVER['HTTP_ACCEPT'] ?? ''), 'application/json');
+
+        if ($wants_json) {
+            HTTP::ExitJSON(
+                ['error' => $signed_in ? 'You do not have permission to do that' : 'Please sign in'],
+                $signed_in ? HTTP::HTTP_STATUS_FORBIDDEN : HTTP::HTTP_STATUS_UNAUTHORIZED
+            );
+        }
+
+        if (!$signed_in) {
+            $signin = $this->SignInPage ?: ($this->DefaultPage ?: '/');
+            if ($signin[0] !== '/') {
+                $signin = '/' . $signin;
+            }
+            HTTP::Redirect($signin . (str_contains($signin, '?') ? '&' : '?') . 'continue=' . urlencode($uri));
+        }
+
+        HTTP::RedirectError('You do not have permission to view that page', $this->DefaultUserPage ?: '/');
+    }
+
+    /**
      * @return void
      */
     public function Exec(): void
@@ -323,6 +517,8 @@ class Web extends strongType
         }
 
         if ($this->ControllerFile) {
+            $this->EnforceAccess();
+
             if ($this->RequireCSRFToken) {
                 Csrf::Check($this->Verb);
             }
@@ -333,6 +529,9 @@ class Web extends strongType
             $class = $this->PageClass;
 
             $class::Init();
+
+            $this->MasterPage = $class::getMasterPage();
+            $this->EnforceAccess(true);
 
             switch ($this->Verb) {
                 case 'GET':
