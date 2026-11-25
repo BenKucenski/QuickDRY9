@@ -70,7 +70,7 @@ Then, in the existing project:
 
 - `HTTP.Post(url, vars, callback, error_callback, dialog)` / `HTTP.Get(...)` is the older jQuery and callbacks style. It shows a wait dialog while it works if `dialog` is given, and shows errors itself unless `error_callback` handles them.
 
-`HTTP.Notice(title, html)` and `HTTP.Wait(title, text, callback)` use the page's dialog controls from `QuickDRY/controls/` (`ctl_*`, `BS5/` or `SWAL/`) when the page includes them. Without them, notices fall back to SweetAlert if the page loads it, else `alert()`, and the wait dialog is skipped. `QuickDRY.js` uses the same fallbacks, so a page without the dialog controls no longer throws on its first error.
+`HTTP.Notice(title, html)` and `HTTP.Wait(title, text, callback)` use the page's dialog controls from `QuickDRY/controls/` (`ctl_*`, `BS5/` or `SWAL/`) when the page includes them. Without them, notices fall back to SweetAlert if the page loads it, else `alert()`, and the wait dialog is skipped. `QuickDRY.js` uses the same fallbacks, so a page without the dialog controls no longer throws on its first error. With the `SWAL/` controls, `QuickDRY.DialogIsOpen('wait_dialog')` and `QuickDRY.CloseDialogIfOpen('wait_dialog')` act on the SweetAlert wait popup (and never close a notice or confirm), `QuickDRY.Delete` asks through `ConfirmDialog` instead of the browser's `confirm()`, and SweetAlert stays above and keeps focus over Bootstrap modals.
 
 ## Application conventions
 
