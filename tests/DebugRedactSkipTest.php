@@ -12,6 +12,18 @@ use PHPUnit\Framework\TestCase;
 #[PreserveGlobalState(false)]
 final class DebugRedactSkipTest extends TestCase
 {
+    /**
+     * DebugSecretValues() without the constants PHPUnit defines in the child
+     * process (PHPUNIT_COMPOSER_INSTALL etc.), which aren't the app's.
+     */
+    private static function appSecrets(): array
+    {
+        return array_filter(
+            DebugSecretValues(),
+            static fn(string $label): bool => !str_starts_with($label, '[PHPUNIT_'),
+        );
+    }
+
     public function testRequestConstantsAreNotRedacted(): void
     {
         define('DB_PASS', 'hunter2secret');
@@ -53,7 +65,7 @@ final class DebugRedactSkipTest extends TestCase
         define('APP_THEME', 'darkmode');
         define('DEBUG_REDACT_SKIP', ['APP_*']);
 
-        self::assertSame(['hunter2secret' => '[DB_PASS]'], DebugSecretValues());
+        self::assertSame(['hunter2secret' => '[DB_PASS]'], self::appSecrets());
     }
 
     public function testSkipListAsCommaSeparatedString(): void
@@ -63,7 +75,7 @@ final class DebugRedactSkipTest extends TestCase
         define('SESSION_NAME', 'MyAppSession');
         define('DEBUG_REDACT_SKIP', 'SESSION_NAME, APP_*');
 
-        self::assertSame(['hunter2secret' => '[DB_PASS]'], DebugSecretValues());
+        self::assertSame(['hunter2secret' => '[DB_PASS]'], self::appSecrets());
     }
 
     public function testWildcardTurnsRedactionOff(): void
