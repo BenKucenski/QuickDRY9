@@ -78,6 +78,20 @@ Then, in the existing project:
 - Master pages live in `<app root>/masterpages/`. The app root is the third argument to `Web::Init()`, normally `__DIR__` in `index.php`.
 - Code generation: `php tasks_db/mysql2code.php -d<database>` or `php tasks_db/mssql2code.php -d<database>`. See below.
 
+## SQL files and reports (APIHelper)
+
+Keep longer queries in `.sql` files written with `@name` parameters, so they run as-is in MySQL Workbench or SSMS, and map the rows to `strongType` DTOs:
+
+```php
+$sql = APIHelper::getSQL(__DIR__ . '/sql/report.sql');   // strips comments; "@" becomes ":" (cached per file)
+$rows = MySQL_A::QueryMap($sql, ['publisher_id' => $id], fn($row) => new ReportDTO($row));
+```
+
+- `getSQL()` replaces `@` with `APIHelper::$default_placeholder`, which is `:` by default. `MySQL::EscapeQuery()` fills in only `:name`, and `MSSQL::EscapeQuery()` only `@name`. So a SQL Server project sets `APIHelper::$default_placeholder = '@'` at startup, or passes `'@'` to `getSQL()`.
+- For an IN list, write `IN ('--ids--')`, then call `APIHelper::ApplyArray('ids', $ids, $sql, $params)`. That gives `IN (:ids0, :ids1, …)`. An empty list leaves the marker, so the condition matches nothing. `ApplyValues()` and `ApplyValuesArray()` do the same for `VALUES` lists.
+- The `Apply*` helpers write the same prefix as `getSQL()`. If you passed an override to `getSQL()`, pass the same one as their last argument.
+- Parameters are quoted, so `LIMIT` takes a literal number, not a parameter.
+
 ## Code generation
 
 The generator writes a model per table (`common/<db>/`), and for each table a JSON endpoint (`pages/json/<db>/<Table>/`, used by `QuickDRY.Read/Create/Update/ConfirmDelete`) and an admin page (`pages/manage/<db>/<Table>/`).
